@@ -2,13 +2,17 @@
 
 param
 (
+    [switch]$CI,
     $Prefix = "/usr"
 )
+
+$qtVersion = [version](qmake -query QT_VERSION)
+Write-Host "Detected Qt version $qtVersion"
 
 if ($IsWindows) {
     dist/scripts/vcvars.ps1
 } elseif ($IsMacOS) {
-    if ($qtVersion -lt [version]'6.5.3') {
+    if (-not $CI -and $qtVersion -lt [version]'6.5.3') {
         # Workaround for QTBUG-117484
         sudo xcode-select --switch /Applications/Xcode_14.3.1.app
     }
@@ -29,6 +33,11 @@ if ($IsMacOS -and $env:buildArch -eq 'Universal') {
 } elseif ($IsWindows) {
     # Workaround for https://developercommunity.visualstudio.com/t/10664660
     $cmakeArgs += '-DCMAKE_CXX_FLAGS=-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR'
+    if ($env:buildArch -eq 'X86') {
+        $cmakeArgs += "-A Win32"
+    } elseif ($env:buildArch -eq 'Arm64') {
+        $cmakeArgs += "-A ARM64"
+    }
 }
 
 # Create a build directory, configure, and build

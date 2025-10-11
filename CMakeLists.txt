@@ -7,6 +7,9 @@ if(BUILD_TESTS)
     enable_testing()
 endif()
 
+# Generate a compile_commands.json file for clang-tidy and other tools
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # Set the application type for platform-specific executables
 if(WIN32)
     set(EXECUTABLE_TYPE WIN32)
@@ -23,13 +26,23 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-# Find either Qt6 or Qt5
-find_package(Qt6 COMPONENTS Core Gui Network Widgets Svg LinguistTools)
-if (Qt6_FOUND)
+# Find required Qt components
+find_package(Qt6 QUIET COMPONENTS Core Gui Network Widgets Svg)
+if(Qt6_FOUND)
     set(QT_VERSION_MAJOR 6)
+    set(QT_VERSION ${Qt6_VERSION})
+    # Find optional tools
+    find_package(Qt6 QUIET COMPONENTS LinguistTools)
 else()
-    find_package(Qt5 COMPONENTS Core Gui Network Widgets Svg LinguistTools REQUIRED)
+    set(QT5_FIND_COMPONENTS Core Gui Network Widgets Svg)
+    if(UNIX AND NOT APPLE)
+        list(APPEND QT5_FIND_COMPONENTS X11Extras)
+    endif()
+    find_package(Qt5 REQUIRED COMPONENTS ${QT5_FIND_COMPONENTS})
     set(QT_VERSION_MAJOR 5)
+    set(QT_VERSION ${Qt5_VERSION})
+    # Find optional tools
+    find_package(Qt5 QUIET COMPONENTS LinguistTools)
 endif()
 
 # Vips image backend
@@ -123,6 +136,8 @@ endif()
 # Add the executable and link Qt libraries
 set(PROJECT_RESOURCES resources/resources.qrc)
 if(WIN32)
+    set(ICON_PATH_RAW "${CMAKE_CURRENT_SOURCE_DIR}/dist/win/qView.ico")
+    string(REPLACE "\\" "\\\\" ICON_PATH "${ICON_PATH_RAW}")
     configure_file(
         "${CMAKE_CURRENT_SOURCE_DIR}/dist/win/qView.rc.in"
         "${CMAKE_CURRENT_BINARY_DIR}/qView.rc"
@@ -152,15 +167,15 @@ if(WIN32)
     # Windows specific: link to Win32 libraries, set icon, and define as a Windows executable.
     if(NOT NO_WIN32)
         target_compile_definitions(${PROJECT_NAME} PRIVATE WIN32_LOADED)
-        target_link_libraries(${PROJECT_NAME} PRIVATE shell32 user32 ole32 shlwapi gdi32)
+        set(PLATFORM_SPECIFIC_LIBS shell32 user32 ole32 shlwapi gdi32)
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${PLATFORM_SPECIFIC_LIBS})
     endif()
-
-    set(ICON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/dist/win/qView.ico")
 elseif(APPLE)
     # macOS specific: link to Cocoa framework and configure the app bundle.
     if(NOT NO_COCOA)
         target_compile_definitions(${PROJECT_NAME} PRIVATE COCOA_LOADED)
-        target_link_libraries(${PROJECT_NAME} PRIVATE "-framework Cocoa")
+        set(PLATFORM_SPECIFIC_LIBS "-framework Cocoa")
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${PLATFORM_SPECIFIC_LIBS})
     endif()
 
     # Set the icon based on the Qt version, as per the Qt documentation.
@@ -191,6 +206,15 @@ elseif(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_BINARY_DIR}/Info.plist"
     )
+elseif(UNIX AND NOT APPLE)
+    if(NOT NO_X11)
+        find_package(X11 REQUIRED)
+        set(PLATFORM_SPECIFIC_LIBS ${X11_LIBRARIES})
+        if(NOT Qt6_FOUND)
+            list(APPEND PLATFORM_SPECIFIC_LIBS Qt5::X11Extras)
+        endif()
+        target_link_libraries(${PROJECT_NAME} PRIVATE ${PLATFORM_SPECIFIC_LIBS})
+    endif()
 endif()
 
 # Compile definitions
@@ -207,8 +231,21 @@ if(DEFINED NIGHTLY)
 endif()
 
 # Handle translations
-file(GLOB TRANSLATIONS "i18n/qview_*.ts")
-qt_add_translations(${PROJECT_NAME} TS_FILES ${TRANSLATIONS})
+if(Qt${QT_VERSION_MAJOR}_LinguistTools_FOUND)
+    message(STATUS "LinguistTools found, building translations.")
+    file(GLOB TRANSLATIONS "i18n/qview_*.ts")
+    if(QT_VERSION_MAJOR EQUAL 5)
+        # For Qt5, use qt5_add_translation (not qt5_add_translations)
+        qt5_add_translation(QM_FILES ${TRANSLATIONS})
+        # Add the generated .qm files as resources or install them
+        target_sources(${PROJECT_NAME} PRIVATE ${QM_FILES})
+    else()
+        # For Qt6, use qt_add_translations
+        qt_add_translations(${PROJECT_NAME} TS_FILES ${TRANSLATIONS})
+    endif()
+else()
+    message(STATUS "LinguistTools not found, skipping translations.")
+endif()
 
 # Installation rules
 include(GNUInstallDirs)
