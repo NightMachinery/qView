@@ -43,17 +43,10 @@ QVImageCore::QVImageCore(QObject *parent) : QObject(parent)
     connect(&qvApp->getSettingsManager(), &SettingsManager::settingsUpdated, this,
             &QVImageCore::settingsUpdated);
     settingsUpdated();
-
-    m_loadTimer.start();
 }
 
 void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 {
-    if (m_loadTimer.elapsed() < 100)
-        return;
-
-    m_loadTimer.restart();
-
     QString sanitaryFileName = fileName;
 
     // sanitize file name if necessary
@@ -77,35 +70,25 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
     setPaused(true);
 
     currentFileDetails.isLoadRequested = true;
-    // TODO: Cache color space
+    // TODO: Cache color space? Expensive to get this on every loadFile call?
     QColorSpace targetColorSpace = getTargetColorSpace();
 
-    // Increment the request counter and capture the new value for this request.
     quint64 requestNumber = ++m_requestCounter;
 
-    // Create a NEW, temporary watcher for this specific task.
     auto *watcher = new QFutureWatcher<ReadData>(this);
 
-    // Connect its finished signal to a lambda that captures the request number.
     connect(watcher, &QFutureWatcher<ReadData>::finished, this, [this, watcher, requestNumber]() {
-        qDebug() << "Request" << requestNumber << "finished";
         const ReadData readData = watcher->result();
 
-        // THE CRITICAL CHECK: Is this image from a request that is
-        // newer than the one currently on screen?
         if (requestNumber > m_lastDisplayedCounter) {
-            qDebug() << "Display" << requestNumber;
-            // Yes, it is. Display it.
             loadPixmap(readData);
 
-            // IMPORTANT: Update the counter for the last displayed image.
             m_lastDisplayedCounter = requestNumber;
         }
 
         watcher->deleteLater();
     });
 
-    qDebug() << "Request" << requestNumber << "started";
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     watcher->setFuture(QtConcurrent::run(this, &QVImageCore::readFile,
                                          sanitaryFileName, targetColorSpace));
@@ -123,45 +106,19 @@ QVImageCore::ReadData QVImageCore::readFile(const QString &fileName,
     int errorCode = 0;
     QString errorString;
 
-    auto result = VipsReader::read(fileName);
+    auto result = VipsReader::read(fileName, targetColorSpace.iccProfile());
     readImage = std::move(result.image);
     errorString = std::move(result.error);
 
     if (!readImage.isNull()) {
         imageSize = readImage.size();
-
-        // Track image's embedded color profile
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-        if (!result.colorProfile.isEmpty())
-        {
-            auto &profile = result.colorProfile;
-#if QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
-            removeTinyDataTagsFromIccProfile(profile);
-#endif
-            readImage.setColorSpace(QColorSpace::fromIccProfile(profile));
-        }
-#endif
     } else {
         errorCode = 1;
     }
 
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    readImage.convertTo(QImage::Format::Format_ARGB32_Premultiplied);
-#else
+    // Convert to premultiplied alpha format for faster rendering
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
     readImage = readImage.convertToFormat(QImage::Format::Format_ARGB32_Premultiplied);
-#endif
-
-// TODO do this lazily
-// Convert image from its embedded color space to the target color space
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    // Assume image is sRGB if it doesn't specify
-    if (!readImage.colorSpace().isValid())
-        readImage.setColorSpace(QColorSpace::SRgb);
-
-    // Convert image color space if we have a target that's different
-    if (targetColorSpace.isValid() && readImage.colorSpace() != targetColorSpace) {
-        readImage.convertToColorSpace(targetColorSpace);
-    }
 #endif
 
     QFileInfo fileInfo(fileName);
@@ -446,6 +403,7 @@ void QVImageCore::requestPreloading()
         return;
     }
 
+    // TODO: Cache this? At least don't call it every preload!!
     QColorSpace targetColorSpace = getTargetColorSpace();
 
     int preloadingDistance = 1;
@@ -488,19 +446,16 @@ void QVImageCore::requestPreloadingFile(const QString &filePath, const QColorSpa
     QFile imgFile(filePath);
 
     // check if image is already loaded or requested
-    // TODO replace
+    // TODO replace check
     // if (QVImageCore::imageCache.contains(cacheKey) || lastFilesPreloaded.contains(filePath))
     //     return;
 
-    // TODO replace
+    // TODO replace limit
     // if (imgFile.size() / 1024 > QVImageCore::imageCache.maxCost() / 2)
     //     return;
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QtConcurrent::run(this, &QVImageCore::readFile, filePath, targetColorSpace);
-#else
-    QtConcurrent::run(&QVImageCore::readFile, this, filePath, targetColorSpace);
-#endif
+    QThreadPool::globalInstance()->start(
+            [this, filePath, targetColorSpace]() { readFile(filePath, targetColorSpace); });
 }
 
 QColorSpace QVImageCore::getTargetColorSpace() const

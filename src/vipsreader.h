@@ -18,11 +18,10 @@ public:
     struct ReadResult
     {
         QImage image;
-        QByteArray colorProfile;
         QString error;
     };
 
-    static ReadResult read(const QString &fileName);
+    static ReadResult read(const QString &fileName, const QByteArray &targetIccProfile = {});
 
     static void init();
     static void preload(const QString &fileName);

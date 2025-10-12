@@ -18,6 +18,7 @@
 typedef QString QColorSpace;
 #endif
 
+// TODO: Move file handling out of this class
 class QVImageCore : public QObject
 {
     Q_OBJECT
@@ -144,8 +145,6 @@ private:
     QString waitingOnPreloadFile;
 
     int largestDimension;
-
-    QElapsedTimer m_loadTimer;
 
     quint64 m_requestCounter = 0;
     quint64 m_lastDisplayedCounter = 0;
