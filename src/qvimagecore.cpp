@@ -208,8 +208,7 @@ QList<QVImageCore::CompatibleFile> QVImageCore::getCompatibleFiles(const QString
     // skip hidden files if user wants to
     QDir::Filters filters = QDir::Files;
 
-    auto &settingsManager = qvApp->getSettingsManager();
-    if (!settingsManager.getBool("skiphidden"))
+    if (!qvGetSettingBool(SkipHidden))
         filters |= QDir::Hidden;
 
     const QFileInfoList currentFolder = QDir(dirPath).entryInfoList(filters, QDir::Unsorted);
@@ -421,11 +420,7 @@ void QVImageCore::setPaused(bool desiredState)
 
 void QVImageCore::setSpeed(int desiredSpeed)
 {
-    if (desiredSpeed < 0)
-        desiredSpeed = 0;
-
-    if (desiredSpeed > 1000)
-        desiredSpeed = 1000;
+    desiredSpeed = std::clamp(desiredSpeed, 0, 1000);
 
     if (currentFileDetails.isMovieLoaded)
         loadedMovie.setSpeed(desiredSpeed);

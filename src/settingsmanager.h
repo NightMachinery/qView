@@ -1,5 +1,5 @@
-#ifndef SETTINGSMANAGER_H
-#define SETTINGSMANAGER_H
+#ifndef _SETTINGSMANAGER_H
+#define _SETTINGSMANAGER_H
 
 #include <QVariant>
 #include <QVector>
@@ -96,4 +96,4 @@ private:
     static const QString &getSettingKey(Setting setting);
 };
 
-#endif // SETTINGSMANAGER_H
+#endif /* _SETTINGSMANAGER_H */
