@@ -81,7 +81,8 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
                 std::unique_ptr<QVImageReader::ReadData> readData =
                         std::move(watcher->future().takeResult());
 
-                if (requestNumber > m_lastDisplayedCounter) {
+                if (requestNumber > m_lastDisplayedCounter)
+                {
                     loadPixmap(std::move(readData));
 
                     m_lastDisplayedCounter = requestNumber;
@@ -95,31 +96,33 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
 void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
 {
-    if (readData->errorData.hasError) {
-        currentFileDetails = getEmptyFileDetails();
-        currentFileDetails.errorData = readData->errorData;
-    } else {
-        currentFileDetails.errorData = {};
-    }
+    std::visit(
+            [this](auto &&arg) {
+                using T = std::decay_t<decltype(arg)>;
+                if constexpr (std::is_same_v<T, QVImageReader::ErrorData>)
+                {
+                    currentFileDetails = getEmptyFileDetails();
+                    currentFileDetails.errorData = arg;
+                    loadEmptyPixmap();
+                    return;
+                } else if constexpr (std::is_same_v<T, QVImageReader::SuccessData>)
+                {
+                    currentFileDetails.errorData = std::nullopt;
 
-    // Do this first so we can keep folder info even when loading errored files
-    currentFileDetails.fileInfo = QFileInfo(readData->absoluteFilePath);
-    currentFileDetails.updateLoadedIndexInFolder();
-    if (currentFileDetails.loadedIndexInFolder == -1)
-        updateFolderInfo();
+                    // Do this first so we can keep folder info even when loading errored files
+                    currentFileDetails.fileInfo = QFileInfo(arg.absoluteFilePath);
+                    currentFileDetails.updateLoadedIndexInFolder();
+                    if (currentFileDetails.loadedIndexInFolder == -1)
+                        updateFolderInfo();
 
-    if (currentFileDetails.errorData.hasError) {
-        loadEmptyPixmap();
-        return;
-    }
-
-    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(readData->image));
+                    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(arg.image));
 
     // Set file details
     currentFileDetails.isPixmapLoaded = true;
-    currentFileDetails.baseImageSize = readData->imageSize;
+                    currentFileDetails.baseImageSize = arg.imageSize;
     currentFileDetails.loadedPixmapSize = loadedPixmap.size();
-    if (currentFileDetails.baseImageSize == QSize(-1, -1)) {
+                    if (currentFileDetails.baseImageSize == QSize(-1, -1))
+                    {
         qInfo() << "QImageReader::size gave an invalid size for "
                         + currentFileDetails.fileInfo.fileName()
                         + ", using size from loaded pixmap";
@@ -133,7 +136,8 @@ void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
     loadedMovie.setFileName(currentFileDetails.fileInfo.absoluteFilePath());
 
     // APNG workaround
-    if (loadedMovie.format() == "png") {
+                    if (loadedMovie.format() == "png")
+                    {
         loadedMovie.setFormat("apng");
         loadedMovie.setFileName(currentFileDetails.fileInfo.absoluteFilePath());
     }
@@ -152,6 +156,9 @@ void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
     emit fileChanged();
 
     requestPreloading();
+                }
+            },
+            *readData);
 }
 
 void QVImageCore::closeImage()
@@ -180,7 +187,8 @@ QVImageCore::FileDetails QVImageCore::getEmptyFileDetails()
              QSize(),
              QSize(),
              QElapsedTimer(),
-             {} };
+             std::nullopt
+    };
 }
 
 // All file logic, sorting, etc should be moved to a different class or file

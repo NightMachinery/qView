@@ -291,11 +291,11 @@ void MainWindow::paintEvent(QPaintEvent *event)
 
     // If there's an error message, draw it centered inside the unobscured area of the viewport.
     const QRect unobscuredViewportRect = rect().adjusted(0, unobscuredViewportY, 0, 0);
-    if (getCurrentFileDetails().errorData.hasError && unobscuredViewportRect.isValid()) {
-        const QVImageReader::ErrorData &errorData = getCurrentFileDetails().errorData;
+    if (getCurrentFileDetails().errorData.has_value() && unobscuredViewportRect.isValid()) {
+        const std::optional<QVImageReader::ErrorData> &errorData = getCurrentFileDetails().errorData;
         const QString errorMessage =
                 tr("Error occurred opening\n%3\n%2 (Error %1)")
-                        .arg(QString::number(errorData.errorNum), errorData.errorString,
+                        .arg(QString::number(errorData->errorCode), errorData->errorString,
                              getCurrentFileDetails().fileInfo.fileName());
         painter.setFont(font());
         painter.setPen(QVApplication::getPerceivedBrightness(backgroundColor) > 0.5 ? Qt::black
@@ -509,7 +509,7 @@ void MainWindow::updateWindowTitle()
             newString = QString::number(getCurrentFileDetails().loadedIndexInFolder + 1);
             newString += "/" + QString::number(getCurrentFileDetails().folderFileInfoList.count());
             newString += " - " + getCurrentFileDetails().fileInfo.fileName();
-            if (!getCurrentFileDetails().errorData.hasError) {
+            if (!getCurrentFileDetails().errorData.has_value()) {
                 newString += " - " + QString::number(getCurrentFileDetails().baseImageSize.width());
                 newString += "x" + QString::number(getCurrentFileDetails().baseImageSize.height());
                 newString +=

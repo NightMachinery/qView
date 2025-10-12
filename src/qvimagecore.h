@@ -11,6 +11,7 @@
 #include <QThreadPool>
 #include <QTimer>
 #include <QTemporaryFile>
+#include <optional>
 
 #include "qvimagereader.h"
 
@@ -44,7 +45,7 @@ public:
         QSize baseImageSize;
         QSize loadedPixmapSize;
         QElapsedTimer timeSinceLoaded;
-        QVImageReader::ErrorData errorData;
+        std::optional<QVImageReader::ErrorData> errorData;
 
         void updateLoadedIndexInFolder();
     };

@@ -7,6 +7,8 @@
 #include <QTemporaryFile>
 #include <QFuture>
 
+#include <variant>
+
 class QWindow;
 
 /// Asynchronous file reader abstraction
@@ -16,40 +18,19 @@ class QVImageReader : public QObject
 public:
     struct ErrorData
     {
-        bool hasError = false;
-        int errorNum = 0;
+        int errorCode = 0;
         QString errorString;
     };
 
-    struct ReadData
+    struct SuccessData
     {
         QImage image;
         QString absoluteFilePath;
         qint64 fileSize;
         QSize imageSize;
-        ErrorData errorData;
-
-        ReadData() = delete;
-        ReadData(QImage &&image, QString absoluteFilePath, qint64 fileSize, QSize imageSize,
-                 ErrorData errorData)
-            : image(std::move(image)),
-              absoluteFilePath(absoluteFilePath),
-              fileSize(fileSize),
-              imageSize(imageSize),
-              errorData(errorData)
-        {
-        }
-
-        // move constructor
-        ReadData(ReadData &&other) noexcept = default;
-
-        // move assignment
-        ReadData &operator=(ReadData &&other) noexcept = default;
-
-        // disable copy and assignment
-        ReadData(const ReadData &other) = delete;
-        ReadData &operator=(const ReadData &other) = delete;
     };
+
+    using ReadData = std::variant<SuccessData, ErrorData>;
 
     explicit QVImageReader(QObject *parent = nullptr);
 

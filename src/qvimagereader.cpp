@@ -15,12 +15,11 @@ QVImageReader::QVImageReader(QObject *parent)
 
 QFuture<std::unique_ptr<QVImageReader::ReadData>> QVImageReader::readFile(const QString &fileName)
 {
-    return QtConcurrent::run([this, fileName]() {
-        return doReadFile(fileName, m_displayColorProfileFile);
-    });
+    return QtConcurrent::run([this, fileName]() { return doReadFile(fileName, m_displayColorProfileFile); });
 }
 
-std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(const QString &fileName, QSharedPointer<QTemporaryFile> displayColorProfileFile)
+std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
+        const QString &fileName, QSharedPointer<QTemporaryFile> displayColorProfileFile)
 {
     QImage readImage;
     QSize imageSize;
@@ -28,16 +27,19 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(const QString
     QString errorString;
 
     QString targetIccFileName;
-    if (displayColorProfileFile) {
+    if (displayColorProfileFile)
+    {
         targetIccFileName = displayColorProfileFile->fileName();
     }
     auto result = VipsReader::read(fileName, targetIccFileName);
     readImage = std::move(result.image);
     errorString = std::move(result.error);
 
-    if (!readImage.isNull()) {
+    if (!readImage.isNull())
+    {
         imageSize = readImage.size();
-    } else {
+    } else
+    {
         errorCode = 1;
     }
 
@@ -46,14 +48,16 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(const QString
 
     QFileInfo fileInfo(fileName);
 
-    auto readData = std::make_unique<ReadData>(std::move(readImage), fileInfo.absoluteFilePath(), fileInfo.size(),
-                                 imageSize, ErrorData{});
-
-    if (readData->image.isNull()) {
-        readData->errorData = { true, errorCode, errorString };
+    if (readImage.isNull())
+    {
+        return std::make_unique<ReadData>(ErrorData{errorCode, errorString});
+    } else
+    {
+        return std::make_unique<ReadData>(SuccessData{std::move(readImage),
+                                                      fileInfo.absoluteFilePath(),
+                                                      fileInfo.size(),
+                                                      imageSize});
     }
-
-    return readData;
 }
 
 void QVImageReader::detectDisplayColorSpace(QWindow *window)
