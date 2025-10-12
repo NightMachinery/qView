@@ -318,6 +318,7 @@ void QVApplication::hideIncompatibleActions()
 
 void QVApplication::defineFilterLists()
 {
+    // TODO: This is now *completely* non-representative of what is supported
     const auto &byteArrayFormats = QImageReader::supportedImageFormats();
 
     auto filterString = tr("Supported Images") + " (";

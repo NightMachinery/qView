@@ -2,6 +2,7 @@
 #include "qvimagecore.h"
 #include <QtGlobal>
 
+#include <iostream>
 #include <vips/vips8>
 #include <vips/memory.h>
 #include <vips/operation.h>
@@ -35,17 +36,23 @@ void VipsReader::shutdown()
 }
 
 // TODO: Lazily load full-res image by using isThumbnail
-vips::VImage VipsReader::createReadPipeline(const QString &fileName, const std::optional<QString> &targetIccProfileFileName, bool isThumbnail)
+vips::VImage VipsReader::createReadPipeline(const QString &fileName, const std::optional<QString> &targetIccProfileFileName, bool isThumbnail, bool loadAllPages)
 {
-    // TODO: magick fallback is not working well, avif for example didn't
-    // seem to work
-    vips::VImage in = isThumbnail
-            ? vips::VImage::thumbnail(fileName.toUtf8().constData(), THUMBNAIL_SIZE) // TODO: magic number
-            : vips::VImage::new_from_file(
-                      fileName.toUtf8().constData(),
-                      vips::VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL));
+    auto options = vips::VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL);
+    if (loadAllPages) {
+        options = options->set("n", -1);
+    }
 
-    if (in.interpretation() == VIPS_INTERPRETATION_ERROR) {
+    vips::VImage in = vips::VImage::new_from_file(
+                      fileName.toUtf8().constData(),
+                      options);
+
+    return in;
+}
+
+vips::VImage VipsReader::finalizePipeline(vips::VImage in, const std::optional<QString> &targetIccProfileFileName)
+{
+        if (in.interpretation() == VIPS_INTERPRETATION_ERROR) {
         throw vips::VError("Vips Error: Cannot interpret image");
     }
 
@@ -81,17 +88,37 @@ vips::VImage VipsReader::createReadPipeline(const QString &fileName, const std::
     // Already premultiplied for some reason
 
     // RGBA -> ARGB
-    vips::VImage a = in.extract_band(3);
-    vips::VImage r = in.extract_band(0);
-    vips::VImage g = in.extract_band(1);
-    vips::VImage b = in.extract_band(2);
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
-    in = in.bandjoin({ b, g, r, a });
+    in = in.bandjoin({
+        in.extract_band(2), // b
+        in.extract_band(1), // g
+        in.extract_band(0), // r
+        in.extract_band(3), // a
+    });
 #elif Q_BYTE_ORDER == Q_BIG_ENDIAN
-    in = in.bandjoin({ a, r, g, b });
+    in = in.bandjoin({
+        in.extract_band(3), // a
+        in.extract_band(0), // r
+        in.extract_band(1), // g
+        in.extract_band(2), // b
+    });
 #endif
 
     return in;
+}
+
+QImage VipsReader::writeToQImage(vips::VImage in)
+{
+    size_t buffer_size;
+    void *buffer = in.write_to_memory(&buffer_size);
+    auto cleanupFn = [](void *info) { g_free(info); };
+
+    QImage image = QImage(static_cast<const uchar *>(buffer), in.width(), in.height(),
+                          in.width() * 4, QImage::Format_ARGB32_Premultiplied, cleanupFn, buffer);
+    if (image.isNull()) {
+        throw vips::VError("Produced null QImage during conversion");
+    }
+    return image;
 }
 
 size_t VipsReader::getMemoryUsage()
@@ -116,6 +143,7 @@ void VipsReader::clearCache()
 
 void VipsReader::preload(const QString &fileName, const std::optional<QString> &targetIccProfileFileName)
 {
+    try {
     QFile nullFile;
 #ifdef Q_OS_WIN
     nullFile.setFileName("NUL");
@@ -124,29 +152,45 @@ void VipsReader::preload(const QString &fileName, const std::optional<QString> &
 #endif
     nullFile.open(QIODevice::WriteOnly);
 
-    vips::VImage img = createReadPipeline(fileName, targetIccProfileFileName, false);
+    vips::VImage img = createReadPipeline(fileName, targetIccProfileFileName, false, false);
+    img = finalizePipeline(img, targetIccProfileFileName);
 
+    // TODO: this doesn't work i think
     img.write_to_file(nullFile.fileName().toUtf8().constData());
+    } catch (const vips::VError &e) {
+        qWarning() << "Failed to preload image" << fileName << e.what();
+    }
 }
 
+// TODO: Handle embedded orientation data
 VipsReader::ReadResult VipsReader::read(const QString &fileName,
                                         const std::optional<QString> &targetIccProfileFileName)
 {
     ReadResult result;
     try {
-        vips::VImage in = createReadPipeline(fileName, targetIccProfileFileName, false);
+        // TODO: Lazily load
+        vips::VImage in = createReadPipeline(fileName, targetIccProfileFileName, false, true);
+        in = finalizePipeline(in, targetIccProfileFileName);
 
-        // Write result to buffer
-        size_t buffer_size;
-        void *buffer = in.write_to_memory(&buffer_size);
+        const int nPages = vips_image_get_n_pages(in.get_image());
+        if (nPages > 1) {
+            int pageHeight = vips_image_get_page_height(in.get_image());
 
-        auto cleanup = [](void *info) { g_free(info); };
+            QVector<QImage> frames;
+            frames.reserve(nPages);
 
-        result.image = QImage(static_cast<const uchar *>(buffer), in.width(), in.height(),
-                              in.width() * 4, QImage::Format_ARGB32_Premultiplied, cleanup, buffer);
-        if (result.image.isNull()) {
-            throw vips::VError("Produced null QImage during conversion");
+            for (int i = 0; i < nPages; ++i) {
+                // std::cout << "processing page " << i << std::endl;
+                vips::VImage page = in.extract_area(0, i * pageHeight, in.width(), pageHeight);
+
+
+                frames.append(std::move(writeToQImage(page)));
+            }
+            result.images = std::move(frames);
+            return result;
         }
+
+        result.images.append(writeToQImage(in));
     } catch (const vips::VError &e) {
         // TODO: Is this memory valid?
         result.error = e.what();

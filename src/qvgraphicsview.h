@@ -1,9 +1,8 @@
-#ifndef QVGRAPHICSVIEW_H
-#define QVGRAPHICSVIEW_H
+#ifndef _QVGRAPHICSVIEW_H
+#define _QVGRAPHICSVIEW_H
 
 #include "qvimagecore.h"
 #include <QGraphicsView>
-#include <QImageReader>
 #include <QMimeData>
 #include <QDir>
 #include <QTimer>
@@ -56,7 +55,6 @@ public:
         return imageCore.getCurrentFileDetails();
     }
     const QPixmap &getLoadedPixmap() const { return imageCore.getLoadedPixmap(); }
-    const QMovie &getLoadedMovie() const { return imageCore.getLoadedMovie(); }
 
 signals:
     void cancelSlideshow();
@@ -139,4 +137,4 @@ private:
     Qt::KeyboardModifiers mousePressModifiers;
     QPoint mousePressPosition;
 };
-#endif // QVGRAPHICSVIEW_H
+#endif /* _QVGRAPHICSVIEW_H */

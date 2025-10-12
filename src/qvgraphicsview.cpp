@@ -425,9 +425,9 @@ void QVGraphicsView::makeUnscaled()
         flipped = true;
 
     // Return to original size
-    if (getCurrentFileDetails().isMovieLoaded)
-        loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
-    else
+    // if (getCurrentFileDetails().isMovieLoaded)
+    //     loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
+    // else
         loadedPixmapItem->setPixmap(getLoadedPixmap());
 
     setTransform(absoluteTransform);
@@ -457,11 +457,11 @@ void QVGraphicsView::animatedFrameChanged(QRect rect)
 {
     Q_UNUSED(rect)
 
-    if (qvGetSettingBool(ScalingEnabled)) {
-        scaleExpensively();
-    } else {
-        loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
-    }
+    // if (qvGetSettingBool(ScalingEnabled)) {
+    //     scaleExpensively();
+    // } else {
+    //     loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
+    // }
 }
 
 void QVGraphicsView::updateLoadedPixmapItem()

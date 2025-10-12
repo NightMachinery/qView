@@ -33,10 +33,8 @@ QFuture<void> QVImageReader::preload(const QString &filePath)
 std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
         const QString &filePath, QSharedPointer<QTemporaryFile> displayColorProfileFile)
 {
-    QImage readImage;
     QSize imageSize;
     int errorCode = 0;
-    QString errorString;
 
     std::optional<QString> targetIccFileName;
     if (displayColorProfileFile)
@@ -44,32 +42,24 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
         targetIccFileName = displayColorProfileFile->fileName();
     }
     auto result = VipsReader::read(filePath, targetIccFileName);
-    readImage = std::move(result.image);
-    errorString = std::move(result.error);
-
-    if (!readImage.isNull())
-    {
-        imageSize = readImage.size();
-    } else
-    {
+    if (result.images.isEmpty() || result.images[0].isNull()) {
         errorCode = 1;
+        return std::make_unique<ReadData>(ErrorData{errorCode, std::move(result.error)});
     }
+    QVImageWrapper readImage = QVImageWrapper(std::move(result.images));
+    const QImage &image = readImage.currentImage();
+
+    imageSize = image.size();
 
     // Should have been converted by libvips already
-    Q_ASSERT(readImage.format() == QImage::Format::Format_ARGB32_Premultiplied);
+    Q_ASSERT(image.format() == QImage::Format::Format_ARGB32_Premultiplied);
 
     QFileInfo fileInfo(filePath);
 
-    if (readImage.isNull())
-    {
-        return std::make_unique<ReadData>(ErrorData{errorCode, errorString});
-    } else
-    {
-        return std::make_unique<ReadData>(SuccessData{std::move(readImage),
+    return std::make_unique<ReadData>(SuccessData{std::move(readImage),
                                                       fileInfo.absoluteFilePath(),
                                                       fileInfo.size(),
                                                       imageSize});
-    }
 }
 
 void QVImageReader::detectDisplayColorSpace(QWindow *window)

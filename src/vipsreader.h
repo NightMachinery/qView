@@ -14,7 +14,7 @@ class VipsReader
 public:
     struct ReadResult
     {
-        QImage image;
+        QVector<QImage> images;
         QString error;
     };
 
@@ -30,7 +30,9 @@ public:
     static ReadResult read(const QString &fileName, const std::optional<QString> &targetIccProfileFileName);
 
 private:
-    static vips::VImage createReadPipeline(const QString &fileName, const std::optional<QString> &targetIccProfileFileName, bool isThumbnail);
+    static vips::VImage createReadPipeline(const QString &fileName, const std::optional<QString> &targetIccProfileFileName, bool isThumbnail, bool loadAllPages);
+    static vips::VImage finalizePipeline(vips::VImage in, const std::optional<QString> &targetIccProfileFileName);
+    static QImage writeToQImage(vips::VImage in);
 };
 
 #endif // VIPSREADER_H

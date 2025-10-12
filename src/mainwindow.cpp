@@ -482,9 +482,10 @@ void MainWindow::populateOpenWithMenu(const QList<OpenWith::OpenWithItem> openWi
 void MainWindow::refreshProperties()
 {
     int value4;
-    if (getCurrentFileDetails().isMovieLoaded)
-        value4 = graphicsView->getLoadedMovie().frameCount();
-    else
+    // TODO
+    // if (getCurrentFileDetails().isMovieLoaded)
+    //     value4 = graphicsView->getLoadedMovie().frameCount();
+    // else
         value4 = 0;
     info->setInfo(getCurrentFileDetails().fileInfo, getCurrentFileDetails().baseImageSize.width(),
                   getCurrentFileDetails().baseImageSize.height(), value4);
@@ -1028,11 +1029,11 @@ void MainWindow::rename()
 
     auto *renameDialog = new QVRenameDialog(this, getCurrentFileDetails().fileInfo);
     connect(renameDialog, &QVRenameDialog::newFileToOpen, this, &MainWindow::openFile);
-    connect(renameDialog, &QVRenameDialog::readyToRenameFile, this, [this]() {
-        if (auto device = graphicsView->getLoadedMovie().device()) {
-            device->close();
-        }
-    });
+    // connect(renameDialog, &QVRenameDialog::readyToRenameFile, this, [this]() {
+    //     if (auto device = graphicsView->getLoadedMovie().device()) {
+    //         device->close();
+    //     }
+    // });
 
     renameDialog->open();
 }
@@ -1105,29 +1106,29 @@ void MainWindow::saveFrameAs()
 {
     QSettings settings;
     settings.beginGroup("recents");
-    if (!getCurrentFileDetails().isMovieLoaded)
-        return;
+    // if (!getCurrentFileDetails().isMovieLoaded)
+        // return;
 
-    if (graphicsView->getLoadedMovie().state() == QMovie::Running) {
-        pause();
-    }
-    QFileDialog *saveDialog = new QFileDialog(this, tr("Save Frame As..."));
-    saveDialog->setDirectory(settings.value("lastFileDialogDir", QDir::homePath()).toString());
-    saveDialog->setNameFilters(qvApp->getNameFilterList());
-    saveDialog->selectFile(getCurrentFileDetails().fileInfo.baseName() + "-"
-                           + QString::number(graphicsView->getLoadedMovie().currentFrameNumber())
-                           + ".png");
-    saveDialog->setDefaultSuffix("png");
-    saveDialog->setAcceptMode(QFileDialog::AcceptSave);
-    saveDialog->open();
-    connect(saveDialog, &QFileDialog::fileSelected, this, [=](const QString &fileName) {
-        graphicsView->originalSize();
-        for (int i = 0; i < graphicsView->getLoadedMovie().frameCount(); i++)
-            nextFrame();
+    // if (graphicsView->getLoadedMovie().state() == QMovie::Running) {
+    //     pause();
+    // }
+    // QFileDialog *saveDialog = new QFileDialog(this, tr("Save Frame As..."));
+    // saveDialog->setDirectory(settings.value("lastFileDialogDir", QDir::homePath()).toString());
+    // saveDialog->setNameFilters(qvApp->getNameFilterList());
+    // saveDialog->selectFile(getCurrentFileDetails().fileInfo.baseName() + "-"
+    //                        + QString::number(graphicsView->getLoadedMovie().currentFrameNumber())
+    //                        + ".png");
+    // saveDialog->setDefaultSuffix("png");
+    // saveDialog->setAcceptMode(QFileDialog::AcceptSave);
+    // saveDialog->open();
+    // connect(saveDialog, &QFileDialog::fileSelected, this, [=](const QString &fileName) {
+    //     graphicsView->originalSize();
+    //     for (int i = 0; i < graphicsView->getLoadedMovie().frameCount(); i++)
+    //         nextFrame();
 
-        graphicsView->getLoadedMovie().currentPixmap().save(fileName, nullptr, 100);
-        graphicsView->resetScale();
-    });
+    //     graphicsView->getLoadedMovie().currentPixmap().save(fileName, nullptr, 100);
+    //     graphicsView->resetScale();
+    // });
 }
 
 void MainWindow::pause()
@@ -1135,21 +1136,21 @@ void MainWindow::pause()
     if (!getCurrentFileDetails().isMovieLoaded)
         return;
 
-    const auto pauseActions = qvApp->getActionManager().getAllClonesOfAction("pause", this);
+    // const auto pauseActions = qvApp->getActionManager().getAllClonesOfAction("pause", this);
 
-    if (graphicsView->getLoadedMovie().state() == QMovie::Running) {
-        graphicsView->setPaused(true);
-        for (const auto &pauseAction : pauseActions) {
-            pauseAction->setText(tr("Res&ume"));
-            pauseAction->setIcon(QIcon::fromTheme("media-playback-start"));
-        }
-    } else {
-        graphicsView->setPaused(false);
-        for (const auto &pauseAction : pauseActions) {
-            pauseAction->setText(tr("Pause"));
-            pauseAction->setIcon(QIcon::fromTheme("media-playback-pause"));
-        }
-    }
+    // if (graphicsView->getLoadedMovie().state() == QMovie::Running) {
+    //     graphicsView->setPaused(true);
+    //     for (const auto &pauseAction : pauseActions) {
+    //         pauseAction->setText(tr("Res&ume"));
+    //         pauseAction->setIcon(QIcon::fromTheme("media-playback-start"));
+    //     }
+    // } else {
+    //     graphicsView->setPaused(false);
+    //     for (const auto &pauseAction : pauseActions) {
+    //         pauseAction->setText(tr("Pause"));
+    //         pauseAction->setIcon(QIcon::fromTheme("media-playback-pause"));
+    //     }
+    // }
 }
 
 void MainWindow::nextFrame()
@@ -1198,7 +1199,7 @@ void MainWindow::decreaseSpeed()
     if (!getCurrentFileDetails().isMovieLoaded)
         return;
 
-    graphicsView->setSpeed(graphicsView->getLoadedMovie().speed() - 25);
+    // graphicsView->setSpeed(graphicsView->getLoadedMovie().speed() - 25);
 }
 
 void MainWindow::resetSpeed()
@@ -1214,7 +1215,7 @@ void MainWindow::increaseSpeed()
     if (!getCurrentFileDetails().isMovieLoaded)
         return;
 
-    graphicsView->setSpeed(graphicsView->getLoadedMovie().speed() + 25);
+    // graphicsView->setSpeed(graphicsView->getLoadedMovie().speed() + 25);
 }
 
 void MainWindow::toggleFullScreen()

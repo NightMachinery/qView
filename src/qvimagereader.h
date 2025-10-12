@@ -1,6 +1,7 @@
 #ifndef _QVIMAGEREADER_H
 #define _QVIMAGEREADER_H
 
+#include "qvimagewrapper.h"
 #include <QImage>
 #include <QObject>
 #include <QSharedPointer>
@@ -24,7 +25,7 @@ public:
 
     struct SuccessData
     {
-        QImage image;
+        QVImageWrapper image;
         QString absoluteFilePath;
         qint64 fileSize;
         QSize imageSize;

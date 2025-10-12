@@ -92,7 +92,6 @@ public:
 
     // returned const reference is read-only
     const QPixmap &getLoadedPixmap() const { return loadedPixmap; }
-    const QMovie &getLoadedMovie() const { return loadedMovie; }
     const FileDetails &getCurrentFileDetails() const { return currentFileDetails; }
     int getCurrentRotation() const { return currentRotation; }
 
@@ -109,7 +108,6 @@ protected:
 
 private:
     QPixmap loadedPixmap;
-    QMovie loadedMovie;
 
     FileDetails currentFileDetails;
     int currentRotation;

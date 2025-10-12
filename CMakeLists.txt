@@ -68,6 +68,7 @@ set(PROJECT_SOURCES
     src/settingsmanager.cpp
     src/shortcutmanager.cpp
     src/vipsreader.cpp
+    src/qvimagewrapper.cpp
 )
 
 # Header files
@@ -88,6 +89,7 @@ set(PROJECT_HEADERS
     src/settingsmanager.h
     src/shortcutmanager.h
     src/vipsreader.h
+    src/qvimagewrapper.h
 )
 
 

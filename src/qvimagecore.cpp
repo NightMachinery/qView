@@ -21,7 +21,7 @@ QVImageCore::QVImageCore(QObject *parent) : QObject(parent)
     m_imageReader = new QVImageReader(this);
     currentRotation = 0;
 
-    connect(&loadedMovie, &QMovie::updated, this, &QVImageCore::animatedFrameChanged);
+    // connect(&loadedMovie, &QMovie::updated, this, &QVImageCore::animatedFrameChanged);
 
     largestDimension = 0;
     const auto screenList = QGuiApplication::screens();
@@ -115,7 +115,7 @@ void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
                     if (currentFileDetails.loadedIndexInFolder == -1)
                         updateFolderInfo();
 
-                    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(arg.image));
+                    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(arg.image.currentImage()));
 
     // Set file details
     currentFileDetails.isPixmapLoaded = true;
@@ -123,33 +123,8 @@ void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
     currentFileDetails.loadedPixmapSize = loadedPixmap.size();
                     if (currentFileDetails.baseImageSize == QSize(-1, -1))
                     {
-        qInfo() << "QImageReader::size gave an invalid size for "
-                        + currentFileDetails.fileInfo.fileName()
-                        + ", using size from loaded pixmap";
         currentFileDetails.baseImageSize = currentFileDetails.loadedPixmapSize;
     }
-
-    // Animation detection
-    // TODO: GIF is loaded with QImageReader/QMovie
-    loadedMovie.setFormat("");
-    loadedMovie.stop();
-    loadedMovie.setFileName(currentFileDetails.fileInfo.absoluteFilePath());
-
-    // APNG workaround
-                    if (loadedMovie.format() == "png")
-                    {
-        loadedMovie.setFormat("apng");
-        loadedMovie.setFileName(currentFileDetails.fileInfo.absoluteFilePath());
-    }
-
-    if (loadedMovie.isValid() && loadedMovie.frameCount() != 1)
-        loadedMovie.start();
-
-    currentFileDetails.isMovieLoaded = loadedMovie.state() == QMovie::Running;
-
-    if (!currentFileDetails.isMovieLoaded)
-        if (auto device = loadedMovie.device())
-            device->close();
 
     currentFileDetails.timeSinceLoaded.start();
 
@@ -170,8 +145,8 @@ void QVImageCore::closeImage()
 void QVImageCore::loadEmptyPixmap()
 {
     loadedPixmap = QPixmap();
-    loadedMovie.stop();
-    loadedMovie.setFileName("");
+    // loadedMovie.stop();
+    // loadedMovie.setFileName("");
 
     emit fileChanged();
 }
@@ -408,22 +383,22 @@ void QVImageCore::requestPreloading()
 
 void QVImageCore::jumpToNextFrame()
 {
-    if (currentFileDetails.isMovieLoaded)
-        loadedMovie.jumpToNextFrame();
+    // if (currentFileDetails.isMovieLoaded)
+    //     loadedMovie.jumpToNextFrame();
 }
 
 void QVImageCore::setPaused(bool desiredState)
 {
-    if (currentFileDetails.isMovieLoaded)
-        loadedMovie.setPaused(desiredState);
+    // if (currentFileDetails.isMovieLoaded)
+        // loadedMovie.setPaused(desiredState);
 }
 
 void QVImageCore::setSpeed(int desiredSpeed)
 {
     desiredSpeed = std::clamp(desiredSpeed, 0, 1000);
 
-    if (currentFileDetails.isMovieLoaded)
-        loadedMovie.setSpeed(desiredSpeed);
+    // if (currentFileDetails.isMovieLoaded)
+    //     loadedMovie.setSpeed(desiredSpeed);
 }
 
 void QVImageCore::rotateImage(int rotation)
@@ -435,13 +410,13 @@ void QVImageCore::rotateImage(int rotation)
     QTransform transform;
 
     QImage transformedImage;
-    if (currentFileDetails.isMovieLoaded) {
-        transform.rotate(currentRotation);
-        transformedImage = loadedMovie.currentImage().transformed(transform);
-    } else {
+    // if (currentFileDetails.isMovieLoaded) {
+        // transform.rotate(currentRotation);
+        // transformedImage = loadedMovie.currentImage().transformed(transform);
+    // } else {
         transform.rotate(rotation);
         transformedImage = loadedPixmap.toImage().transformed(transform);
-    }
+    // }
 
     loadedPixmap.convertFromImage(transformedImage);
 
@@ -469,6 +444,8 @@ QPixmap QVImageCore::matchCurrentRotation(const QPixmap &pixmapToRotate)
 }
 
 // TODO: move expensive functions to vips
+// TODO: This whole scheme of scaling qpixmap is leading to very high mem usage
+// i guarantee it
 QPixmap QVImageCore::scaleExpensively(const int desiredWidth, const int desiredHeight)
 {
     return scaleExpensively(QSizeF(desiredWidth, desiredHeight));
@@ -486,9 +463,9 @@ QPixmap QVImageCore::scaleExpensively(const QSizeF desiredSize)
     QPixmap relevantPixmap;
     if (!currentFileDetails.isMovieLoaded) {
         relevantPixmap = loadedPixmap;
-    } else {
-        relevantPixmap = loadedMovie.currentPixmap();
-        relevantPixmap = matchCurrentRotation(relevantPixmap);
+    // } else {
+    //     relevantPixmap = loadedMovie.currentPixmap();
+    //     relevantPixmap = matchCurrentRotation(relevantPixmap);
     }
 
     // If we are really close to the original size, just return the original
