@@ -21,11 +21,15 @@ public:
         QString error;
     };
 
-    static ReadResult read(const QString &fileName, const QString &targetIccProfileFileName);
 
     static void init();
-    static void preload(const QString &fileName);
     static void shutdown();
+
+    static size_t getMemoryUsage();
+    static int getCacheSize();
+
+    static void preload(const QString &fileName);
+    static ReadResult read(const QString &fileName, const QString &targetIccProfileFileName);
 
 private:
     static vips::VImage readFile(const QString &fileName, bool isThumbnail);

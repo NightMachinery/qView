@@ -1,8 +1,9 @@
 #include "vipsreader.h"
 #include <QtGlobal>
 
-#include <iostream>
 #include <vips/vips8>
+#include <vips/memory.h>
+#include <vips/operation.h>
 #include <glib.h>
 
 #include <cstddef>
@@ -15,6 +16,8 @@ void VipsReader::init()
     {
         qFatal("Failed to initialize VIPS");
     }
+    // TODO: Tweak caching depending on preloading mode, maybe fully
+    // configurable in future
     vips_cache_set_max_mem(1024 * 1024 * 1024);
     vips_cache_set_max(10000);
 }
@@ -27,6 +30,8 @@ void VipsReader::shutdown()
 // TODO: Lazily load full-res image by using isThumbnail
 vips::VImage VipsReader::readFile(const QString &fileName, bool isThumbnail)
 {
+    // TODO: magick fallback is not working well, avif for example didn't
+    // seem to work
     vips::VImage in = isThumbnail
             ? vips::VImage::thumbnail(fileName.toUtf8().constData(), 256) // TODO: magic number
             : vips::VImage::new_from_file(fileName.toUtf8().constData(),
@@ -38,6 +43,16 @@ vips::VImage VipsReader::readFile(const QString &fileName, bool isThumbnail)
 
 
     return in;
+}
+
+size_t VipsReader::getMemoryUsage()
+{
+    return vips_tracked_get_mem();
+}
+
+int VipsReader::getCacheSize()
+{
+    return vips_cache_get_size();
 }
 
 void VipsReader::preload(const QString &fileName)

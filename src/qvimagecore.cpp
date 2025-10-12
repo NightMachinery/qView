@@ -75,13 +75,13 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
     quint64 requestNumber = ++m_requestCounter;
 
-    auto *watcher = new QFutureWatcher<ReadData>(this);
+    auto *watcher = new QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>(this);
 
-    connect(watcher, &QFutureWatcher<ReadData>::finished, this, [this, watcher, requestNumber]() {
-        const ReadData readData = watcher->result();
+    connect(watcher, &QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>::finished, this, [this, watcher, requestNumber]() {
+        std::unique_ptr<QVImageCore::ReadData> readData = std::move(watcher->future().takeResult());
 
         if (requestNumber > m_lastDisplayedCounter) {
-            loadPixmap(readData);
+            loadPixmap(std::move(readData));
 
             m_lastDisplayedCounter = requestNumber;
         }
@@ -98,7 +98,7 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 #endif
 }
 
-QVImageCore::ReadData QVImageCore::readFile(const QString &fileName)
+std::unique_ptr<QVImageCore::ReadData> QVImageCore::readFile(const QString &fileName)
 {
     QImage readImage;
     QSize imageSize;
@@ -122,27 +122,25 @@ QVImageCore::ReadData QVImageCore::readFile(const QString &fileName)
         errorCode = 1;
     }
 
-    // Convert to premultiplied alpha format for faster rendering
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    readImage = readImage.convertToFormat(QImage::Format::Format_ARGB32_Premultiplied);
-#endif
+    // Should have been converted by libvips already
+    Q_ASSERT(readImage.format() == QImage::Format::Format_ARGB32_Premultiplied);
 
     QFileInfo fileInfo(fileName);
 
-    ReadData readData = {
+    ReadData readData = ReadData(
         std::move(readImage),
         fileInfo.absoluteFilePath(),
         fileInfo.size(),
         imageSize,
         {}
-    };
+    );
 
     if (readData.image.isNull())
     {
         readData.errorData = { true, errorCode, errorString };
     }
 
-    return readData;
+    return std::make_unique<ReadData>(std::move(readData));
 }
 
 void QVImageCore::preloadFile(const QString &fileName)
@@ -150,17 +148,17 @@ void QVImageCore::preloadFile(const QString &fileName)
     VipsReader::preload(fileName);
 }
 
-void QVImageCore::loadPixmap(const ReadData &readData)
+void QVImageCore::loadPixmap(std::unique_ptr<QVImageCore::ReadData> readData)
 {
-    if (readData.errorData.hasError) {
+    if (readData->errorData.hasError) {
         currentFileDetails = getEmptyFileDetails();
-        currentFileDetails.errorData = readData.errorData;
+        currentFileDetails.errorData = readData->errorData;
     } else {
         currentFileDetails.errorData = {};
     }
 
     // Do this first so we can keep folder info even when loading errored files
-    currentFileDetails.fileInfo = QFileInfo(readData.absoluteFilePath);
+    currentFileDetails.fileInfo = QFileInfo(readData->absoluteFilePath);
     currentFileDetails.updateLoadedIndexInFolder();
     if (currentFileDetails.loadedIndexInFolder == -1)
         updateFolderInfo();
@@ -170,11 +168,11 @@ void QVImageCore::loadPixmap(const ReadData &readData)
         return;
     }
 
-    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(readData.image));
+    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(readData->image));
 
     // Set file details
     currentFileDetails.isPixmapLoaded = true;
-    currentFileDetails.baseImageSize = readData.imageSize;
+    currentFileDetails.baseImageSize = readData->imageSize;
     currentFileDetails.loadedPixmapSize = loadedPixmap.size();
     if (currentFileDetails.baseImageSize == QSize(-1, -1)) {
         qInfo() << "QImageReader::size gave an invalid size for "
@@ -404,6 +402,9 @@ void QVImageCore::updateFolderInfo(QString dirPath)
 
 void QVImageCore::requestPreloading()
 {
+    // TODO: this makes no sense at all. Preloading amount should be decided
+    // dynamically based on available memory and size of surrounding files.
+    // added getMemoryUsage for this
     int preloadingMode = qvGetSettingInt(PreloadingMode);
     if (preloadingMode == 0) {
         return;
@@ -461,7 +462,7 @@ void QVImageCore::requestPreloadingFile(const QString &filePath)
     //     return;
 
     QThreadPool::globalInstance()->start(
-            [this, filePath]() { readFile(filePath); });
+            [this, filePath]() { preloadFile(filePath); });
 }
 
 void QVImageCore::detectDisplayColorSpace()

@@ -75,14 +75,27 @@ public:
         qint64 fileSize;
         QSize imageSize;
         ErrorData errorData;
+
+        ReadData() = delete;
+        ReadData(QImage &&image, QString absoluteFilePath, qint64 fileSize, QSize imageSize, ErrorData errorData) : image(std::move(image)), absoluteFilePath(absoluteFilePath), fileSize(fileSize), imageSize(imageSize), errorData(errorData) {}
+
+        // move constructor
+        ReadData(ReadData &&other) noexcept = default;
+
+        // move assignment
+        ReadData &operator=(ReadData &&other) noexcept = default;
+
+        // disable copy and assignment
+        ReadData(const ReadData &other) = delete;
+        ReadData &operator=(const ReadData &other) = delete;
     };
 
     explicit QVImageCore(QObject *parent = nullptr);
 
     void loadFile(const QString &fileName, bool isReloading = false);
-    ReadData readFile(const QString &fileName);
+    std::unique_ptr<ReadData> readFile(const QString &fileName);
     void preloadFile(const QString &fileName);
-    void loadPixmap(const ReadData &readData);
+    void loadPixmap(std::unique_ptr<ReadData> readData);
     void closeImage();
     QList<CompatibleFile> getCompatibleFiles(const QString &dirPath) const;
     void updateFolderInfo(QString dirPath = QString());
