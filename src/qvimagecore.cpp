@@ -71,7 +71,7 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
     currentFileDetails.isLoadRequested = true;
     // TODO: Cache color space? Expensive to get this on every loadFile call?
-    QColorSpace targetColorSpace = getTargetColorSpace();
+    detectDisplayColorSpace();
 
     quint64 requestNumber = ++m_requestCounter;
 
@@ -94,19 +94,25 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
                                          sanitaryFileName, targetColorSpace));
 #else
     watcher->setFuture(QtConcurrent::run(&QVImageCore::readFile, this,
-                                         sanitaryFileName, targetColorSpace));
+                                         sanitaryFileName));
 #endif
 }
 
-QVImageCore::ReadData QVImageCore::readFile(const QString &fileName,
-                                            const QColorSpace &targetColorSpace)
+QVImageCore::ReadData QVImageCore::readFile(const QString &fileName)
 {
     QImage readImage;
     QSize imageSize;
     int errorCode = 0;
     QString errorString;
 
-    auto result = VipsReader::read(fileName, targetColorSpace.iccProfile());
+    // Copy of shared pointer, so this file won't be deleted in another thread
+    // while vips is reading it
+    QSharedPointer<QTemporaryFile> targetIccFile = displayColorProfileFile;
+    QString targetIccFileName;
+    if (targetIccFile) {
+        targetIccFileName = targetIccFile->fileName();
+    }
+    auto result = VipsReader::read(fileName, targetIccFileName);
     readImage = std::move(result.image);
     errorString = std::move(result.error);
 
@@ -139,8 +145,7 @@ QVImageCore::ReadData QVImageCore::readFile(const QString &fileName,
     return readData;
 }
 
-void QVImageCore::preloadFile(const QString &fileName,
-                                            const QColorSpace &targetColorSpace)
+void QVImageCore::preloadFile(const QString &fileName)
 {
     VipsReader::preload(fileName);
 }
@@ -179,6 +184,7 @@ void QVImageCore::loadPixmap(const ReadData &readData)
     }
 
     // Animation detection
+    // TODO: GIF is loaded with QImageReader/QMovie
     loadedMovie.setFormat("");
     loadedMovie.stop();
     loadedMovie.setFileName(currentFileDetails.fileInfo.absoluteFilePath());
@@ -404,7 +410,7 @@ void QVImageCore::requestPreloading()
     }
 
     // TODO: Cache this? At least don't call it every preload!!
-    QColorSpace targetColorSpace = getTargetColorSpace();
+    detectDisplayColorSpace();
 
     int preloadingDistance = 1;
 
@@ -436,12 +442,12 @@ void QVImageCore::requestPreloading()
         QString filePath = currentFileDetails.folderFileInfoList[index].absoluteFilePath;
         filesToPreload.append(filePath);
 
-        requestPreloadingFile(filePath, targetColorSpace);
+        requestPreloadingFile(filePath);
     }
     lastFilesPreloaded = filesToPreload;
 }
 
-void QVImageCore::requestPreloadingFile(const QString &filePath, const QColorSpace &targetColorSpace)
+void QVImageCore::requestPreloadingFile(const QString &filePath)
 {
     QFile imgFile(filePath);
 
@@ -455,24 +461,11 @@ void QVImageCore::requestPreloadingFile(const QString &filePath, const QColorSpa
     //     return;
 
     QThreadPool::globalInstance()->start(
-            [this, filePath, targetColorSpace]() { readFile(filePath, targetColorSpace); });
+            [this, filePath]() { readFile(filePath); });
 }
 
-QColorSpace QVImageCore::getTargetColorSpace() const
+void QVImageCore::detectDisplayColorSpace()
 {
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    return colorSpaceConversion == 1    ? detectDisplayColorSpace()
-            : colorSpaceConversion == 2 ? QColorSpace::SRgb
-            : colorSpaceConversion == 3 ? QColorSpace::DisplayP3
-                                        : QColorSpace();
-#else
-    return {};
-#endif
-}
-
-QColorSpace QVImageCore::detectDisplayColorSpace() const
-{
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
     QWindow *window = static_cast<QWidget *>(parent())->window()->windowHandle();
 
     QByteArray profileData;
@@ -487,60 +480,12 @@ QColorSpace QVImageCore::detectDisplayColorSpace() const
 #  endif
 
     if (!profileData.isEmpty()) {
-        QColorSpace colorSpace = QColorSpace::fromIccProfile(profileData);
-#  if QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
-        if (!colorSpace.isValid() && removeTinyDataTagsFromIccProfile(profileData))
-            colorSpace = QColorSpace::fromIccProfile(profileData);
-#  endif
-        return colorSpace;
+        displayColorProfileFile.reset(new QTemporaryFile());
+        displayColorProfileFile->open();
+        displayColorProfileFile->write(profileData);
+        displayColorProfileFile->close();
     }
-#endif
-
-    return {};
 }
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
-// Workaround for QTBUG-125241
-bool QVImageCore::removeTinyDataTagsFromIccProfile(QByteArray &profile)
-{
-    const int offsetTagCount = 128;
-    const qsizetype length = profile.length();
-    qsizetype offset = offsetTagCount;
-    char *data = profile.data();
-    bool foundTinyData = false;
-    // read tag count
-    if (length - offset < 4)
-        return false;
-    quint32 tagCount = qFromBigEndian<quint32>(data + offset);
-    offset += 4;
-    // so we don't have to worry about overflows
-    if (tagCount > 99999)
-        return false;
-    // loop through tags
-    if (length - offset < qsizetype(tagCount * 12))
-        return false;
-    while (tagCount) {
-        tagCount -= 1;
-        const quint32 dataSize = qFromBigEndian<quint32>(data + offset + 8);
-        if (dataSize >= 12) {
-            // this tag is fine
-            offset += 12;
-            continue;
-        }
-        // qt will fail on this tag, remove it
-        foundTinyData = true;
-        if (tagCount) {
-            // shift subsequent tags back
-            std::memmove(data + offset, data + offset + 12, tagCount * 12);
-        }
-        // zero fill gap at end
-        std::memset(data + offset + (tagCount * 12), 0, 12);
-        // decrement tag count
-        qToBigEndian(qFromBigEndian<quint32>(data + offsetTagCount) - 1, data + offsetTagCount);
-    }
-    return foundTinyData;
-}
-#endif
 
 void QVImageCore::jumpToNextFrame()
 {

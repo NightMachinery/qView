@@ -11,12 +11,7 @@
 #include <QRunnable>
 #include <QThreadPool>
 #include <QTimer>
-
-#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-#  include <QColorSpace>
-#else
-typedef QString QColorSpace;
-#endif
+#include <QTemporaryFile>
 
 // TODO: Move file handling out of this class
 class QVImageCore : public QObject
@@ -85,16 +80,15 @@ public:
     explicit QVImageCore(QObject *parent = nullptr);
 
     void loadFile(const QString &fileName, bool isReloading = false);
-    ReadData readFile(const QString &fileName, const QColorSpace &targetColorSpace);
-    void preloadFile(const QString &fileName, const QColorSpace &targetColorSpace);
+    ReadData readFile(const QString &fileName);
+    void preloadFile(const QString &fileName);
     void loadPixmap(const ReadData &readData);
     void closeImage();
     QList<CompatibleFile> getCompatibleFiles(const QString &dirPath) const;
     void updateFolderInfo(QString dirPath = QString());
     void requestPreloading();
-    void requestPreloadingFile(const QString &filePath, const QColorSpace &targetColorSpace);
-    QColorSpace getTargetColorSpace() const;
-    QColorSpace detectDisplayColorSpace() const;
+    void requestPreloadingFile(const QString &filePath);
+    void detectDisplayColorSpace();
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
     static bool removeTinyDataTagsFromIccProfile(QByteArray &profile);
 #endif
@@ -148,6 +142,8 @@ private:
 
     quint64 m_requestCounter = 0;
     quint64 m_lastDisplayedCounter = 0;
+
+    QSharedPointer<QTemporaryFile> displayColorProfileFile;
 };
 
 #endif // QVIMAGECORE_H

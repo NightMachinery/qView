@@ -21,14 +21,14 @@ public:
         QString error;
     };
 
-    static ReadResult read(const QString &fileName, const QByteArray &targetIccProfile = {});
+    static ReadResult read(const QString &fileName, const QString &targetIccProfileFileName);
 
     static void init();
     static void preload(const QString &fileName);
     static void shutdown();
 
 private:
-    static vips::VImage createPipeline(const QString &fileName, bool isThumbnail);
+    static vips::VImage readFile(const QString &fileName, bool isThumbnail);
 };
 
 #endif // VIPSREADER_H
