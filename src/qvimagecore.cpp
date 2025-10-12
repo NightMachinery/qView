@@ -18,6 +18,7 @@
 
 QVImageCore::QVImageCore(QObject *parent) : QObject(parent)
 {
+    m_imageReader = new QVImageReader(this);
     currentRotation = 0;
 
     connect(&loadedMovie, &QMovie::updated, this, &QVImageCore::animatedFrameChanged);
@@ -69,15 +70,15 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
     currentFileDetails.isLoadRequested = true;
     // TODO: Cache color space? Expensive to get this on every loadFile call?
-    detectDisplayColorSpace();
+    m_imageReader->detectDisplayColorSpace(static_cast<QWidget *>(parent())->window()->windowHandle());
 
     quint64 requestNumber = ++m_requestCounter;
 
-    auto *watcher = new QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>(this);
+    auto *watcher = new QFutureWatcher<std::unique_ptr<QVImageReader::ReadData>>(this);
 
-    connect(watcher, &QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>::finished, this,
+    connect(watcher, &QFutureWatcher<std::unique_ptr<QVImageReader::ReadData>>::finished, this,
             [this, watcher, requestNumber]() {
-                std::unique_ptr<QVImageCore::ReadData> readData =
+                std::unique_ptr<QVImageReader::ReadData> readData =
                         std::move(watcher->future().takeResult());
 
                 if (requestNumber > m_lastDisplayedCounter) {
@@ -89,59 +90,10 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
                 watcher->deleteLater();
             });
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    watcher->setFuture(
-            QtConcurrent::run(this, &QVImageCore::readFile, sanitaryFileName, targetColorSpace));
-#else
-    watcher->setFuture(QtConcurrent::run(&QVImageCore::readFile, this, sanitaryFileName));
-#endif
+    watcher->setFuture(m_imageReader->readFile(sanitaryFileName));
 }
 
-std::unique_ptr<QVImageCore::ReadData> QVImageCore::readFile(const QString &fileName)
-{
-    QImage readImage;
-    QSize imageSize;
-    int errorCode = 0;
-    QString errorString;
-
-    // Copy of shared pointer, so this file won't be deleted in another thread
-    // while vips is reading it
-    QSharedPointer<QTemporaryFile> targetIccFile = displayColorProfileFile;
-    QString targetIccFileName;
-    if (targetIccFile) {
-        targetIccFileName = targetIccFile->fileName();
-    }
-    auto result = VipsReader::read(fileName, targetIccFileName);
-    readImage = std::move(result.image);
-    errorString = std::move(result.error);
-
-    if (!readImage.isNull()) {
-        imageSize = readImage.size();
-    } else {
-        errorCode = 1;
-    }
-
-    // Should have been converted by libvips already
-    Q_ASSERT(readImage.format() == QImage::Format::Format_ARGB32_Premultiplied);
-
-    QFileInfo fileInfo(fileName);
-
-    ReadData readData = ReadData(std::move(readImage), fileInfo.absoluteFilePath(), fileInfo.size(),
-                                 imageSize, {});
-
-    if (readData.image.isNull()) {
-        readData.errorData = { true, errorCode, errorString };
-    }
-
-    return std::make_unique<ReadData>(std::move(readData));
-}
-
-void QVImageCore::preloadFile(const QString &fileName)
-{
-    VipsReader::preload(fileName);
-}
-
-void QVImageCore::loadPixmap(std::unique_ptr<QVImageCore::ReadData> readData)
+void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
 {
     if (readData->errorData.hasError) {
         currentFileDetails = getEmptyFileDetails();
@@ -404,9 +356,6 @@ void QVImageCore::requestPreloading()
         return;
     }
 
-    // TODO: Cache this? At least don't call it every preload!!
-    detectDisplayColorSpace();
-
     int preloadingDistance = preloadingMode == 1 ? 1 : 4;
 
     QStringList filesToPreload;
@@ -447,33 +396,10 @@ void QVImageCore::requestPreloading()
             if (QFile(filePath).size() / 1024 > VipsReader::getCacheMaxMemoryUsage() / 2) {
                 return;
             }
-            preloadFile(filePath);
+            VipsReader::preload(filePath);
         });
     }
     lastFilesPreloaded = filesToPreload;
-}
-
-void QVImageCore::detectDisplayColorSpace()
-{
-    QWindow *window = static_cast<QWidget *>(parent())->window()->windowHandle();
-
-    QByteArray profileData;
-#ifdef WIN32_LOADED
-    profileData = QVWin32Functions::getIccProfileForWindow(window);
-#endif
-#ifdef COCOA_LOADED
-    profileData = QVCocoaFunctions::getIccProfileForWindow(window);
-#endif
-#ifdef X11_LOADED
-    profileData = QVLinuxX11Functions::getIccProfileForWindow(window);
-#endif
-
-    if (!profileData.isEmpty()) {
-        displayColorProfileFile.reset(new QTemporaryFile());
-        displayColorProfileFile->open();
-        displayColorProfileFile->write(profileData);
-        displayColorProfileFile->close();
-    }
 }
 
 void QVImageCore::jumpToNextFrame()
@@ -542,6 +468,7 @@ QPixmap QVImageCore::matchCurrentRotation(const QPixmap &pixmapToRotate)
     return QPixmap::fromImage(matchCurrentRotation(pixmapToRotate.toImage()));
 }
 
+// TODO: move expensive functions to vips
 QPixmap QVImageCore::scaleExpensively(const int desiredWidth, const int desiredHeight)
 {
     return scaleExpensively(QSizeF(desiredWidth, desiredHeight));

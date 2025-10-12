@@ -491,7 +491,7 @@ void ActionManager::actionTriggered(QAction *triggeredAction)
 #ifdef Q_OS_MACOS
     windowlessActions << "about" << "welcome" << "options";
 #endif
-    for (const auto &actionName : qAsConst(windowlessActions)) {
+    for (const auto &actionName : std::as_const(windowlessActions)) {
         if (key == actionName) {
             actionTriggered(triggeredAction, nullptr);
             return;

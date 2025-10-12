@@ -1,24 +1,26 @@
-#ifndef QVIMAGECORE_H
-#define QVIMAGECORE_H
+#ifndef _QVIMAGECORE_H
+#define _QVIMAGECORE_H
 
-#include <QObject>
-#include <QImageReader>
-#include <QPixmap>
-#include <QMovie>
-#include <QFileInfo>
 #include <QCache>
 #include <QElapsedTimer>
+#include <QFileInfo>
+#include <QMovie>
+#include <QObject>
+#include <QPixmap>
 #include <QRunnable>
 #include <QThreadPool>
 #include <QTimer>
 #include <QTemporaryFile>
 
-// TODO: Move file handling out of this class
+#include "qvimagereader.h"
+
 class QVImageCore : public QObject
 {
     Q_OBJECT
 
 public:
+// todo remove
+
     struct CompatibleFile
     {
         QString absoluteFilePath;
@@ -29,13 +31,6 @@ public:
         qint64 lastCreated;
         qint64 size;
         QString mimeType;
-    };
-
-    struct ErrorData
-    {
-        bool hasError = false;
-        int errorNum = 0;
-        QString errorString;
     };
 
     struct FileDetails
@@ -49,7 +44,7 @@ public:
         QSize baseImageSize;
         QSize loadedPixmapSize;
         QElapsedTimer timeSinceLoaded;
-        ErrorData errorData;
+        QVImageReader::ErrorData errorData;
 
         void updateLoadedIndexInFolder();
     };
@@ -68,47 +63,15 @@ public:
         }
     };
 
-    struct ReadData
-    {
-        QImage image;
-        QString absoluteFilePath;
-        qint64 fileSize;
-        QSize imageSize;
-        ErrorData errorData;
-
-        ReadData() = delete;
-        ReadData(QImage &&image, QString absoluteFilePath, qint64 fileSize, QSize imageSize,
-                 ErrorData errorData)
-            : image(std::move(image)),
-              absoluteFilePath(absoluteFilePath),
-              fileSize(fileSize),
-              imageSize(imageSize),
-              errorData(errorData)
-        {
-        }
-
-        // move constructor
-        ReadData(ReadData &&other) noexcept = default;
-
-        // move assignment
-        ReadData &operator=(ReadData &&other) noexcept = default;
-
-        // disable copy and assignment
-        ReadData(const ReadData &other) = delete;
-        ReadData &operator=(const ReadData &other) = delete;
-    };
-
     explicit QVImageCore(QObject *parent = nullptr);
 
     void loadFile(const QString &fileName, bool isReloading = false);
-    std::unique_ptr<ReadData> readFile(const QString &fileName);
     void preloadFile(const QString &fileName);
-    void loadPixmap(std::unique_ptr<ReadData> readData);
+    void loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData);
     void closeImage();
     QList<CompatibleFile> getCompatibleFiles(const QString &dirPath) const;
     void updateFolderInfo(QString dirPath = QString());
     void requestPreloading();
-    void detectDisplayColorSpace();
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
     static bool removeTinyDataTagsFromIccProfile(QByteArray &profile);
 #endif
@@ -163,7 +126,7 @@ private:
     quint64 m_requestCounter = 0;
     quint64 m_lastDisplayedCounter = 0;
 
-    QSharedPointer<QTemporaryFile> displayColorProfileFile;
+    QVImageReader *m_imageReader = nullptr;
 };
 
-#endif // QVIMAGECORE_H
+#endif /* _QVIMAGECORE_H */

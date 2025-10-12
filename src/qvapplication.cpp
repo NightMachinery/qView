@@ -147,7 +147,7 @@ MainWindow *QVApplication::newWindow()
 MainWindow *QVApplication::getMainWindow(bool shouldBeEmpty)
 {
     // Attempt to use from list of last active windows
-    for (const auto &window : qAsConst(lastActiveWindows)) {
+    for (const auto &window : std::as_const(lastActiveWindows)) {
         if (!window)
             continue;
 

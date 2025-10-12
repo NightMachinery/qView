@@ -292,7 +292,7 @@ void MainWindow::paintEvent(QPaintEvent *event)
     // If there's an error message, draw it centered inside the unobscured area of the viewport.
     const QRect unobscuredViewportRect = rect().adjusted(0, unobscuredViewportY, 0, 0);
     if (getCurrentFileDetails().errorData.hasError && unobscuredViewportRect.isValid()) {
-        const QVImageCore::ErrorData &errorData = getCurrentFileDetails().errorData;
+        const QVImageReader::ErrorData &errorData = getCurrentFileDetails().errorData;
         const QString errorMessage =
                 tr("Error occurred opening\n%3\n%2 (Error %1)")
                         .arg(QString::number(errorData.errorNum), errorData.errorString,
