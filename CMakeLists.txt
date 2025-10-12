@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(qView VERSION 7.0 LANGUAGES CXX)
+project(qView VERSION 8.0 LANGUAGES CXX)
 # Optional test building
 option(BUILD_TESTS "Build tests" OFF)
 if(BUILD_TESTS)
