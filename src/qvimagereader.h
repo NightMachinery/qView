@@ -35,9 +35,15 @@ public:
     explicit QVImageReader(QObject *parent = nullptr);
 
     /** Asynchronously reads a file
-     *  Returns immediately. Result will be emitted
+     *  Returns immediately a future that will hold the result.
      */
     QFuture<std::unique_ptr<ReadData>> readFile(const QString &fileName);
+
+    /** Preloads a file into memory
+     *  Result will be discarded, and hopefully cached by libvips.
+     *  Returns immediately a future containing no result.
+     */
+    QFuture<void> preload(const QString &fileName);
 
 
     /** Detects the display color space and stores it in a temporary file

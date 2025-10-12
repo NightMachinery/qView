@@ -13,25 +13,37 @@ QVImageReader::QVImageReader(QObject *parent)
 {
 }
 
-QFuture<std::unique_ptr<QVImageReader::ReadData>> QVImageReader::readFile(const QString &fileName)
+QFuture<std::unique_ptr<QVImageReader::ReadData>> QVImageReader::readFile(const QString &filePath)
 {
-    return QtConcurrent::run([this, fileName]() { return doReadFile(fileName, m_displayColorProfileFile); });
+    return QtConcurrent::run([this, filePath]() { return doReadFile(filePath, m_displayColorProfileFile); });
+}
+
+QFuture<void> QVImageReader::preload(const QString &filePath)
+{
+    return QtConcurrent::run([this, filePath]() {
+        if (QFile(filePath).size() / 1024 > VipsReader::getCacheMaxMemoryUsage() / 2) {
+            return;
+        }
+        QSharedPointer<QTemporaryFile> displayColorProfileFile = m_displayColorProfileFile;
+        std::optional<QString> targetIccFileName = displayColorProfileFile ? std::make_optional(displayColorProfileFile->fileName()) : std::nullopt;
+        VipsReader::preload(filePath, targetIccFileName);
+    });
 }
 
 std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
-        const QString &fileName, QSharedPointer<QTemporaryFile> displayColorProfileFile)
+        const QString &filePath, QSharedPointer<QTemporaryFile> displayColorProfileFile)
 {
     QImage readImage;
     QSize imageSize;
     int errorCode = 0;
     QString errorString;
 
-    QString targetIccFileName;
+    std::optional<QString> targetIccFileName;
     if (displayColorProfileFile)
     {
         targetIccFileName = displayColorProfileFile->fileName();
     }
-    auto result = VipsReader::read(fileName, targetIccFileName);
+    auto result = VipsReader::read(filePath, targetIccFileName);
     readImage = std::move(result.image);
     errorString = std::move(result.error);
 
@@ -46,7 +58,7 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
     // Should have been converted by libvips already
     Q_ASSERT(readImage.format() == QImage::Format::Format_ARGB32_Premultiplied);
 
-    QFileInfo fileInfo(fileName);
+    QFileInfo fileInfo(filePath);
 
     if (readImage.isNull())
     {

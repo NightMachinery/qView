@@ -26,11 +26,11 @@ public:
     static int getCacheSize();
     static void clearCache();
 
-    static void preload(const QString &fileName);
-    static ReadResult read(const QString &fileName, const QString &targetIccProfileFileName);
+    static void preload(const QString &fileName, const std::optional<QString> &targetIccProfileFileName);
+    static ReadResult read(const QString &fileName, const std::optional<QString> &targetIccProfileFileName);
 
 private:
-    static vips::VImage readFile(const QString &fileName, bool isThumbnail);
+    static vips::VImage createReadPipeline(const QString &fileName, const std::optional<QString> &targetIccProfileFileName, bool isThumbnail);
 };
 
 #endif // VIPSREADER_H

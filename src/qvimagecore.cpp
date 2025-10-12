@@ -401,10 +401,7 @@ void QVImageCore::requestPreloading()
         QThreadPool::globalInstance()->start([this, filePath]() {
             // Skip preload if file is larger than half of VIPS cache
             // TODO: This should be more intelligent
-            if (QFile(filePath).size() / 1024 > VipsReader::getCacheMaxMemoryUsage() / 2) {
-                return;
-            }
-            VipsReader::preload(filePath);
+            m_imageReader->preload(filePath);
         });
     }
     lastFilesPreloaded = filesToPreload;
