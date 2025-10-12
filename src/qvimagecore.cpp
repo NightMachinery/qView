@@ -422,10 +422,8 @@ void QVImageCore::updateFolderInfo(QString dirPath)
     };
 
     if (shouldSort) {
-        qDebug() << "Sorting folder";
         sortFn();
     } else {
-        qDebug() << "Not sorting folder";
     }
 
     // Set current file index variable
