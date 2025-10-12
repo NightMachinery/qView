@@ -9,11 +9,9 @@
 #include <cstddef>
 #include <string>
 
-
 void VipsReader::init()
 {
-    if (VIPS_INIT(nullptr) != 0)
-    {
+    if (VIPS_INIT(nullptr) != 0) {
         qFatal("Failed to initialize VIPS");
     }
     // TODO: Tweak caching depending on preloading mode, maybe fully
@@ -34,13 +32,13 @@ vips::VImage VipsReader::readFile(const QString &fileName, bool isThumbnail)
     // seem to work
     vips::VImage in = isThumbnail
             ? vips::VImage::thumbnail(fileName.toUtf8().constData(), 256) // TODO: magic number
-            : vips::VImage::new_from_file(fileName.toUtf8().constData(),
-                                            vips::VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL));
+            : vips::VImage::new_from_file(
+                      fileName.toUtf8().constData(),
+                      vips::VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL));
 
     if (in.interpretation() == VIPS_INTERPRETATION_ERROR) {
         throw vips::VError("Vips Error: Cannot interpret image");
     }
-
 
     return in;
 }
@@ -62,11 +60,11 @@ void VipsReader::preload(const QString &fileName)
     // TODO: this basically does nothing afaik, since we don't actually trigger the pipeline
 }
 
-VipsReader::ReadResult VipsReader::read(const QString &fileName, const QString &targetIccProfileFileName)
+VipsReader::ReadResult VipsReader::read(const QString &fileName,
+                                        const QString &targetIccProfileFileName)
 {
     ReadResult result;
-    try
-    {
+    try {
         vips::VImage in = readFile(fileName, false);
 
         // TODO: Open questions:
@@ -82,15 +80,15 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName, const QString &
         // Transform the image color space from the embedded profile to the target profile
         const auto iccTransformOptions = vips::VImage::option()->set("embedded", true);
         if (!targetIccProfileFileName.isEmpty()) {
-            in = in.icc_transform(targetIccProfileFileName.toUtf8().constData(), iccTransformOptions);
+            in = in.icc_transform(targetIccProfileFileName.toUtf8().constData(),
+                                  iccTransformOptions);
         } else {
             // In the absence of a monitor profile, treat as sRGB
             in = in.icc_transform("sRGB", iccTransformOptions);
         }
 
         // Strip away non-standard color channels (non RGB or RGBA)
-        if (in.bands() > 4 && in.has_alpha())
-        {
+        if (in.bands() > 4 && in.has_alpha()) {
             in = in.extract_band(0, vips::VImage::option()->set("n", 4));
         } else if (in.bands() > 3 && !in.has_alpha()) {
             in = in.extract_band(0, vips::VImage::option()->set("n", 3));
@@ -98,7 +96,7 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName, const QString &
 
         // Add const alpha channel if it is not present
         if (!in.has_alpha()) {
-            in = in.bandjoin_const({255.0});
+            in = in.bandjoin_const({ 255.0 });
         }
 
         // RGBA -> ARGB
@@ -107,9 +105,9 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName, const QString &
         vips::VImage g = in.extract_band(1);
         vips::VImage b = in.extract_band(2);
 #if Q_BYTE_ORDER == Q_LITTLE_ENDIAN
-        in = in.bandjoin({b,g,r,a});
+        in = in.bandjoin({ b, g, r, a });
 #elif Q_BYTE_ORDER == Q_BIG_ENDIAN
-        in = in.bandjoin({a,r,g,b});
+        in = in.bandjoin({ a, r, g, b });
 #endif
 
         // Already premultiplied for some reason
@@ -118,17 +116,14 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName, const QString &
         size_t buffer_size;
         void *buffer = in.write_to_memory(&buffer_size);
 
-        auto cleanup = [](void *info) {
-            g_free(info);
-        };
+        auto cleanup = [](void *info) { g_free(info); };
 
-        result.image = QImage(static_cast<const uchar *>(buffer), in.width(), in.height(), in.width() * 4, QImage::Format_ARGB32_Premultiplied, cleanup, buffer);
+        result.image = QImage(static_cast<const uchar *>(buffer), in.width(), in.height(),
+                              in.width() * 4, QImage::Format_ARGB32_Premultiplied, cleanup, buffer);
         if (result.image.isNull()) {
             throw vips::VError("Produced null QImage during conversion");
         }
-    }
-    catch (const vips::VError &e)
-    {
+    } catch (const vips::VError &e) {
         // TODO: Is this memory valid?
         result.error = e.what();
     }

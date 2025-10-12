@@ -22,8 +22,6 @@ QVImageCore::QVImageCore(QObject *parent) : QObject(parent)
 
     connect(&loadedMovie, &QMovie::updated, this, &QVImageCore::animatedFrameChanged);
 
-
-
     largestDimension = 0;
     const auto screenList = QGuiApplication::screens();
     for (auto const &screen : screenList) {
@@ -77,24 +75,25 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
     auto *watcher = new QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>(this);
 
-    connect(watcher, &QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>::finished, this, [this, watcher, requestNumber]() {
-        std::unique_ptr<QVImageCore::ReadData> readData = std::move(watcher->future().takeResult());
+    connect(watcher, &QFutureWatcher<std::unique_ptr<QVImageCore::ReadData>>::finished, this,
+            [this, watcher, requestNumber]() {
+                std::unique_ptr<QVImageCore::ReadData> readData =
+                        std::move(watcher->future().takeResult());
 
-        if (requestNumber > m_lastDisplayedCounter) {
-            loadPixmap(std::move(readData));
+                if (requestNumber > m_lastDisplayedCounter) {
+                    loadPixmap(std::move(readData));
 
-            m_lastDisplayedCounter = requestNumber;
-        }
+                    m_lastDisplayedCounter = requestNumber;
+                }
 
-        watcher->deleteLater();
-    });
+                watcher->deleteLater();
+            });
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    watcher->setFuture(QtConcurrent::run(this, &QVImageCore::readFile,
-                                         sanitaryFileName, targetColorSpace));
+    watcher->setFuture(
+            QtConcurrent::run(this, &QVImageCore::readFile, sanitaryFileName, targetColorSpace));
 #else
-    watcher->setFuture(QtConcurrent::run(&QVImageCore::readFile, this,
-                                         sanitaryFileName));
+    watcher->setFuture(QtConcurrent::run(&QVImageCore::readFile, this, sanitaryFileName));
 #endif
 }
 
@@ -127,16 +126,10 @@ std::unique_ptr<QVImageCore::ReadData> QVImageCore::readFile(const QString &file
 
     QFileInfo fileInfo(fileName);
 
-    ReadData readData = ReadData(
-        std::move(readImage),
-        fileInfo.absoluteFilePath(),
-        fileInfo.size(),
-        imageSize,
-        {}
-    );
+    ReadData readData = ReadData(std::move(readImage), fileInfo.absoluteFilePath(), fileInfo.size(),
+                                 imageSize, {});
 
-    if (readData.image.isNull())
-    {
+    if (readData.image.isNull()) {
         readData.errorData = { true, errorCode, errorString };
     }
 
@@ -461,8 +454,7 @@ void QVImageCore::requestPreloadingFile(const QString &filePath)
     // if (imgFile.size() / 1024 > QVImageCore::imageCache.maxCost() / 2)
     //     return;
 
-    QThreadPool::globalInstance()->start(
-            [this, filePath]() { preloadFile(filePath); });
+    QThreadPool::globalInstance()->start([this, filePath]() { preloadFile(filePath); });
 }
 
 void QVImageCore::detectDisplayColorSpace()
@@ -470,15 +462,15 @@ void QVImageCore::detectDisplayColorSpace()
     QWindow *window = static_cast<QWidget *>(parent())->window()->windowHandle();
 
     QByteArray profileData;
-#  ifdef WIN32_LOADED
+#ifdef WIN32_LOADED
     profileData = QVWin32Functions::getIccProfileForWindow(window);
-#  endif
-#  ifdef COCOA_LOADED
+#endif
+#ifdef COCOA_LOADED
     profileData = QVCocoaFunctions::getIccProfileForWindow(window);
-#  endif
-#  ifdef X11_LOADED
+#endif
+#ifdef X11_LOADED
     profileData = QVLinuxX11Functions::getIccProfileForWindow(window);
-#  endif
+#endif
 
     if (!profileData.isEmpty()) {
         displayColorProfileFile.reset(new QTemporaryFile());

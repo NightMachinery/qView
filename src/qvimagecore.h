@@ -77,7 +77,15 @@ public:
         ErrorData errorData;
 
         ReadData() = delete;
-        ReadData(QImage &&image, QString absoluteFilePath, qint64 fileSize, QSize imageSize, ErrorData errorData) : image(std::move(image)), absoluteFilePath(absoluteFilePath), fileSize(fileSize), imageSize(imageSize), errorData(errorData) {}
+        ReadData(QImage &&image, QString absoluteFilePath, qint64 fileSize, QSize imageSize,
+                 ErrorData errorData)
+            : image(std::move(image)),
+              absoluteFilePath(absoluteFilePath),
+              fileSize(fileSize),
+              imageSize(imageSize),
+              errorData(errorData)
+        {
+        }
 
         // move constructor
         ReadData(ReadData &&other) noexcept = default;

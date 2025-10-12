@@ -5,12 +5,9 @@
 #include <QImage>
 #include <QString>
 
-
-namespace vips
-{
+namespace vips {
 class VImage;
 }
-
 
 class VipsReader
 {
@@ -20,7 +17,6 @@ public:
         QImage image;
         QString error;
     };
-
 
     static void init();
     static void shutdown();
