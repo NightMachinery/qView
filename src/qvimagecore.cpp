@@ -21,8 +21,6 @@ QVImageCore::QVImageCore(QObject *parent) : QObject(parent)
     m_imageReader = new QVImageReader(this);
     currentRotation = 0;
 
-    // connect(&loadedMovie, &QMovie::updated, this, &QVImageCore::animatedFrameChanged);
-
     largestDimension = 0;
     const auto screenList = QGuiApplication::screens();
     for (auto const &screen : screenList) {
@@ -96,44 +94,55 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
 
 void QVImageCore::loadPixmap(std::unique_ptr<QVImageReader::ReadData> readData)
 {
-    std::visit(
+   std::visit(
             [this](auto &&arg) {
-                using T = std::decay_t<decltype(arg)>;
-                if constexpr (std::is_same_v<T, QVImageReader::ErrorData>)
-                {
-                    currentFileDetails = getEmptyFileDetails();
-                    currentFileDetails.errorData = arg;
-                    loadEmptyPixmap();
-                    return;
-                } else if constexpr (std::is_same_v<T, QVImageReader::SuccessData>)
-                {
-                    currentFileDetails.errorData = std::nullopt;
+        using T = std::decay_t<decltype(arg)>;
+        if constexpr (std::is_same_v<T, QVImageReader::ErrorData>) {
+            currentFileDetails = getEmptyFileDetails();
+            currentFileDetails.errorData = arg;
+            loadEmptyPixmap();
+            return;
+        } else if constexpr (std::is_same_v<T, QVImageReader::SuccessData>) {
+            currentFileDetails.errorData = std::nullopt;
 
-                    // Do this first so we can keep folder info even when loading errored files
-                    currentFileDetails.fileInfo = QFileInfo(arg.absoluteFilePath);
-                    currentFileDetails.updateLoadedIndexInFolder();
-                    if (currentFileDetails.loadedIndexInFolder == -1)
-                        updateFolderInfo();
+            // Do this first so we can keep folder info even when loading errored files
+            currentFileDetails.fileInfo = QFileInfo(arg.absoluteFilePath);
+            currentFileDetails.updateLoadedIndexInFolder();
+            if (currentFileDetails.loadedIndexInFolder == -1) {
+                updateFolderInfo();
+            }
 
-                    loadedPixmap = QPixmap::fromImage(matchCurrentRotation(arg.image.currentImage()));
+            if (loadedImage) {
+                disconnect(&(*loadedImage), &QVImageWrapper::frameChanged, this,
+                           &QVImageCore::onAnimatedFrameChanged);
+            }
+            loadedImage = std::move(arg.image);
+            connect(&(*loadedImage), &QVImageWrapper::frameChanged, this,
+                    &QVImageCore::onAnimatedFrameChanged);
 
-    // Set file details
-    currentFileDetails.isPixmapLoaded = true;
-                    currentFileDetails.baseImageSize = arg.imageSize;
-    currentFileDetails.loadedPixmapSize = loadedPixmap.size();
-                    if (currentFileDetails.baseImageSize == QSize(-1, -1))
-                    {
-        currentFileDetails.baseImageSize = currentFileDetails.loadedPixmapSize;
-    }
+            // TODO remove
+            loadedPixmap = QPixmap::fromImage(matchCurrentRotation(loadedImage->currentImage()));
 
-    currentFileDetails.timeSinceLoaded.start();
+            // todo the state of this should be coupled with image wrapper
+            // Set file details
+            currentFileDetails.isPixmapLoaded = true;
+            currentFileDetails.baseImageSize = arg.imageSize;
+            currentFileDetails.loadedPixmapSize = loadedPixmap.size();
+            if (currentFileDetails.baseImageSize == QSize(-1, -1)) {
+                currentFileDetails.baseImageSize = currentFileDetails.loadedPixmapSize;
+            }
 
-    emit fileChanged();
+            // Todo temp forced
+            currentFileDetails.isMovieLoaded = true;
 
-    requestPreloading();
-                }
-            },
-            *readData);
+            currentFileDetails.timeSinceLoaded.start();
+
+            emit fileChanged();
+
+            requestPreloading();
+        }
+    },
+    *readData);
 }
 
 void QVImageCore::closeImage()
@@ -328,6 +337,7 @@ void QVImageCore::updateFolderInfo(QString dirPath)
     currentFileDetails.updateLoadedIndexInFolder();
 }
 
+// todo: move somee of this into reader
 void QVImageCore::requestPreloading()
 {
     // TODO: this makes no sense at all. Preloading amount should be decided
@@ -372,19 +382,19 @@ void QVImageCore::requestPreloading()
         preloadFilesInProgress.append(filePath);
 
         // Send preload request
-        QThreadPool::globalInstance()->start([this, filePath]() {
-            // Skip preload if file is larger than half of VIPS cache
-            // TODO: This should be more intelligent
-            m_imageReader->preload(filePath);
-        });
+        m_imageReader->preload(filePath);
     }
     lastFilesPreloaded = filesToPreload;
 }
 
+void QVImageCore::jumpToPreviousFrame()
+{
+    loadedImage->jumpToPreviousFrame();
+}
+
 void QVImageCore::jumpToNextFrame()
 {
-    // if (currentFileDetails.isMovieLoaded)
-    //     loadedMovie.jumpToNextFrame();
+    loadedImage->jumpToNextFrame();
 }
 
 void QVImageCore::setPaused(bool desiredState)
@@ -461,12 +471,12 @@ QPixmap QVImageCore::scaleExpensively(const QSizeF desiredSize)
 
     // Get the current frame of the animation if this is an animation
     QPixmap relevantPixmap;
-    if (!currentFileDetails.isMovieLoaded) {
+    // if (!currentFileDetails.isMovieLoaded) {
         relevantPixmap = loadedPixmap;
     // } else {
     //     relevantPixmap = loadedMovie.currentPixmap();
     //     relevantPixmap = matchCurrentRotation(relevantPixmap);
-    }
+    // }
 
     // If we are really close to the original size, just return the original
     if (abs(desiredSize.width() - relevantPixmap.width()) < 1
@@ -498,6 +508,13 @@ void QVImageCore::settingsUpdated()
 
     if (changedImagePreprocessing && currentFileDetails.isPixmapLoaded)
         loadFile(currentFileDetails.fileInfo.absoluteFilePath());
+}
+
+void QVImageCore::onAnimatedFrameChanged()
+{
+    loadedPixmap = QPixmap::fromImage(loadedImage->currentImage());
+    emit updateLoadedPixmapItem();
+    emit animatedFrameChanged();
 }
 
 void QVImageCore::FileDetails::updateLoadedIndexInFolder()

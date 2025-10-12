@@ -272,6 +272,7 @@ QMenu *ActionManager::buildToolsMenu(bool addIcon, QWidget *parent)
 
     addCloneOfAction(toolsMenu, "saveframeas");
     addCloneOfAction(toolsMenu, "pause");
+    addCloneOfAction(toolsMenu, "prevframe");
     addCloneOfAction(toolsMenu, "nextframe");
     toolsMenu->addSeparator();
     addCloneOfAction(toolsMenu, "decreasespeed");
@@ -617,6 +618,8 @@ void ActionManager::actionTriggered(QAction *triggeredAction, MainWindow *releva
         relevantWindow->saveFrameAs();
     } else if (key == "pause") {
         relevantWindow->pause();
+    } else if (key == "prevframe") {
+        relevantWindow->prevFrame();
     } else if (key == "nextframe") {
         relevantWindow->nextFrame();
     } else if (key == "decreasespeed") {
@@ -778,6 +781,11 @@ void ActionManager::initializeActionLibrary()
     auto *pauseAction = new QAction(QIcon::fromTheme("media-playback-pause"), tr("Pa&use"));
     pauseAction->setData({ "gifdisable" });
     actionLibrary.insert("pause", pauseAction);
+
+    // TODO refactor to next page/prev page
+    auto *prevFrameAction = new QAction(QIcon::fromTheme("media-skip-backward"), tr("&Previous Frame"));
+    prevFrameAction->setData({ "gifdisable" });
+    actionLibrary.insert("prevframe", prevFrameAction);
 
     auto *nextFrameAction = new QAction(QIcon::fromTheme("media-skip-forward"), tr("&Next Frame"));
     nextFrameAction->setData({ "gifdisable" });

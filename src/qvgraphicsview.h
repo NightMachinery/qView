@@ -45,6 +45,8 @@ public:
     void settingsUpdated();
 
     void closeImage();
+
+    void jumpToPreviousFrame();
     void jumpToNextFrame();
     void setPaused(const bool &desiredState);
     void setSpeed(const int &desiredSpeed);
@@ -100,7 +102,7 @@ protected:
     void centerOn(const QGraphicsItem *item);
 
 private slots:
-    void animatedFrameChanged(QRect rect);
+    void animatedFrameChanged();
 
     void postLoad();
 

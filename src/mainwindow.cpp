@@ -261,6 +261,15 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event)
     QMainWindow::mouseDoubleClickEvent(event);
 }
 
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    if (event->key() == Qt::Key_PageUp || event->key() == Qt::Key_PageDown) {
+        event->accept();
+        return;
+    }
+    QMainWindow::keyPressEvent(event);
+}
+
 void MainWindow::paintEvent(QPaintEvent *event)
 {
     Q_UNUSED(event);
@@ -1153,11 +1162,13 @@ void MainWindow::pause()
     // }
 }
 
+void MainWindow::prevFrame()
+{
+    graphicsView->jumpToPreviousFrame();
+}
+
 void MainWindow::nextFrame()
 {
-    if (!getCurrentFileDetails().isMovieLoaded)
-        return;
-
     graphicsView->jumpToNextFrame();
 }
 

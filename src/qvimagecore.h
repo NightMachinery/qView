@@ -40,8 +40,8 @@ public:
         QList<CompatibleFile> folderFileInfoList;
         int loadedIndexInFolder = -1;
         bool isLoadRequested = false;
-        bool isPixmapLoaded = false;
-        bool isMovieLoaded = false;
+        bool isPixmapLoaded = false; // TODO remove move into wrapper
+        bool isMovieLoaded = false; // TODO remove move into wrapper
         QSize baseImageSize;
         QSize loadedPixmapSize;
         QElapsedTimer timeSinceLoaded;
@@ -79,6 +79,7 @@ public:
 
     void settingsUpdated();
 
+    void jumpToPreviousFrame();
     void jumpToNextFrame();
     void setPaused(bool desiredState);
     void setSpeed(int desiredSpeed);
@@ -96,7 +97,7 @@ public:
     int getCurrentRotation() const { return currentRotation; }
 
 signals:
-    void animatedFrameChanged(QRect rect);
+    void animatedFrameChanged();
 
     void updateLoadedPixmapItem();
 
@@ -106,8 +107,11 @@ protected:
     void loadEmptyPixmap();
     FileDetails getEmptyFileDetails();
 
+private slots:
+    void onAnimatedFrameChanged();
 private:
-    QPixmap loadedPixmap;
+    std::optional<QVImageWrapper> loadedImage;
+    QPixmap loadedPixmap; // TODO remove
 
     FileDetails currentFileDetails;
     int currentRotation;

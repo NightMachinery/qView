@@ -1,5 +1,5 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef _MAINWINDOW_H
+#define _MAINWINDOW_H
 
 #include "qvinfodialog.h"
 #include "qvimagecore.h"
@@ -108,6 +108,8 @@ public:
 
     void pause();
 
+    void prevFrame();
+
     void nextFrame();
 
     void decreaseSpeed();
@@ -155,6 +157,8 @@ protected:
 
     void mouseDoubleClickEvent(QMouseEvent *event) override;
 
+    void keyPressEvent(QKeyEvent *event) override;
+
     void paintEvent(QPaintEvent *event) override;
 
     void fullscreenChanged();
@@ -191,4 +195,4 @@ private:
     QFutureWatcher<QList<OpenWith::OpenWithItem>> openWithFutureWatcher;
 };
 
-#endif // MAINWINDOW_H
+#endif /* _MAINWINDOW_H */

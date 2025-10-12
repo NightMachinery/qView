@@ -453,15 +453,13 @@ void QVGraphicsView::updateFilteringMode()
                                                     : Qt::FastTransformation);
 }
 
-void QVGraphicsView::animatedFrameChanged(QRect rect)
+void QVGraphicsView::animatedFrameChanged()
 {
-    Q_UNUSED(rect)
-
-    // if (qvGetSettingBool(ScalingEnabled)) {
-    //     scaleExpensively();
-    // } else {
-    //     loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
-    // }
+    if (qvGetSettingBool(ScalingEnabled)) {
+        scaleExpensively();
+    } else {
+        loadedPixmapItem->setPixmap(getLoadedPixmap());
+    }
 }
 
 void QVGraphicsView::updateLoadedPixmapItem()
@@ -736,6 +734,11 @@ void QVGraphicsView::settingsUpdated()
 void QVGraphicsView::closeImage()
 {
     imageCore.closeImage();
+}
+
+void QVGraphicsView::jumpToPreviousFrame()
+{
+    imageCore.jumpToPreviousFrame();
 }
 
 void QVGraphicsView::jumpToNextFrame()
