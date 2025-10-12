@@ -18,6 +18,7 @@ void VipsReader::init()
     // configurable in future
     vips_cache_set_max_mem(1024 * 1024 * 1024);
     vips_cache_set_max(10000);
+    vips_cache_set_max_files(100);
 }
 
 void VipsReader::shutdown()
@@ -48,9 +49,19 @@ size_t VipsReader::getMemoryUsage()
     return vips_tracked_get_mem();
 }
 
+size_t VipsReader::getCacheMaxMemoryUsage()
+{
+    return vips_cache_get_max_mem();
+}
+
 int VipsReader::getCacheSize()
 {
     return vips_cache_get_size();
+}
+
+void VipsReader::clearCache()
+{
+    vips_cache_drop_all();
 }
 
 void VipsReader::preload(const QString &fileName)

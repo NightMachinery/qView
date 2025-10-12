@@ -108,7 +108,6 @@ public:
     QList<CompatibleFile> getCompatibleFiles(const QString &dirPath) const;
     void updateFolderInfo(QString dirPath = QString());
     void requestPreloading();
-    void requestPreloadingFile(const QString &filePath);
     void detectDisplayColorSpace();
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
     static bool removeTinyDataTagsFromIccProfile(QByteArray &profile);

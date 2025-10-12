@@ -304,8 +304,10 @@ void QVImageCore::updateFolderInfo(QString dirPath)
 
     DirInfo dirInfo = { dirPath, currentFileDetails.folderFileInfoList.count(),
                         qvGetSettingInt(SortMode), qvGetSettingBool(SortDescending) };
-    // If the current folder changed since the last image, assign a new seed for random sorting
-    const bool shouldSort = lastDirInfo != dirInfo;
+
+    // Only sort if the folder has changed
+    // TODO: this is redundant
+    const bool dirChanged = lastDirInfo != dirInfo;
     lastDirInfo = dirInfo;
 
     const auto sortFn = [&]() {
@@ -384,9 +386,8 @@ void QVImageCore::updateFolderInfo(QString dirPath)
         }
     };
 
-    if (shouldSort) {
+    if (dirChanged) {
         sortFn();
-    } else {
     }
 
     // Set current file index variable
@@ -406,10 +407,7 @@ void QVImageCore::requestPreloading()
     // TODO: Cache this? At least don't call it every preload!!
     detectDisplayColorSpace();
 
-    int preloadingDistance = 1;
-
-    if (preloadingMode > 1)
-        preloadingDistance = 4;
+    int preloadingDistance = preloadingMode == 1 ? 1 : 4;
 
     QStringList filesToPreload;
     for (int i = currentFileDetails.loadedIndexInFolder - preloadingDistance;
@@ -436,25 +434,23 @@ void QVImageCore::requestPreloading()
         QString filePath = currentFileDetails.folderFileInfoList[index].absoluteFilePath;
         filesToPreload.append(filePath);
 
-        requestPreloadingFile(filePath);
+        if (preloadFilesInProgress.contains(filePath)) {
+            continue;
+        }
+
+        preloadFilesInProgress.append(filePath);
+
+        // Send preload request
+        QThreadPool::globalInstance()->start([this, filePath]() {
+            // Skip preload if file is larger than half of VIPS cache
+            // TODO: This should be more intelligent
+            if (QFile(filePath).size() / 1024 > VipsReader::getCacheMaxMemoryUsage() / 2) {
+                return;
+            }
+            preloadFile(filePath);
+        });
     }
     lastFilesPreloaded = filesToPreload;
-}
-
-void QVImageCore::requestPreloadingFile(const QString &filePath)
-{
-    QFile imgFile(filePath);
-
-    // check if image is already loaded or requested
-    // TODO replace check
-    // if (QVImageCore::imageCache.contains(cacheKey) || lastFilesPreloaded.contains(filePath))
-    //     return;
-
-    // TODO replace limit
-    // if (imgFile.size() / 1024 > QVImageCore::imageCache.maxCost() / 2)
-    //     return;
-
-    QThreadPool::globalInstance()->start([this, filePath]() { preloadFile(filePath); });
 }
 
 void QVImageCore::detectDisplayColorSpace()

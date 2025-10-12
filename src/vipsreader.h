@@ -22,7 +22,9 @@ public:
     static void shutdown();
 
     static size_t getMemoryUsage();
+    static size_t getCacheMaxMemoryUsage();
     static int getCacheSize();
+    static void clearCache();
 
     static void preload(const QString &fileName);
     static ReadResult read(const QString &fileName, const QString &targetIccProfileFileName);
