@@ -6,10 +6,11 @@
 #include <QPixmap>
 #include <QMovie>
 #include <QFileInfo>
-#include <QFutureWatcher>
-#include <QTimer>
 #include <QCache>
 #include <QElapsedTimer>
+#include <QRunnable>
+#include <QThreadPool>
+#include <QTimer>
 
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
 #  include <QColorSpace>
@@ -77,7 +78,6 @@ public:
         QString absoluteFilePath;
         qint64 fileSize;
         QSize imageSize;
-        QColorSpace targetColorSpace;
         ErrorData errorData;
     };
 
@@ -85,15 +85,13 @@ public:
 
     void loadFile(const QString &fileName, bool isReloading = false);
     ReadData readFile(const QString &fileName, const QColorSpace &targetColorSpace);
+    void preloadFile(const QString &fileName, const QColorSpace &targetColorSpace);
     void loadPixmap(const ReadData &readData);
     void closeImage();
     QList<CompatibleFile> getCompatibleFiles(const QString &dirPath) const;
     void updateFolderInfo(QString dirPath = QString());
-    void requestCaching();
-    void requestCachingFile(const QString &filePath, const QColorSpace &targetColorSpace);
-    void addToCache(const ReadData &&readImageAndFileInfo);
-    static QString getPixmapCacheKey(const QString &absoluteFilePath, const qint64 &fileSize,
-                                     const QColorSpace &targetColorSpace);
+    void requestPreloading();
+    void requestPreloadingFile(const QString &filePath, const QColorSpace &targetColorSpace);
     QColorSpace getTargetColorSpace() const;
     QColorSpace detectDisplayColorSpace() const;
 #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0) && QT_VERSION < QT_VERSION_CHECK(6, 7, 2)
@@ -137,11 +135,7 @@ private:
     FileDetails currentFileDetails;
     int currentRotation;
 
-    QFutureWatcher<ReadData> loadFutureWatcher;
-
     int colorSpaceConversion;
-
-    static QCache<QString, ReadData> imageCache;
 
     DirInfo lastDirInfo;
 
@@ -151,7 +145,10 @@ private:
 
     int largestDimension;
 
-    bool waitingOnLoad;
+    QElapsedTimer m_loadTimer;
+
+    quint64 m_requestCounter = 0;
+    quint64 m_lastDisplayedCounter = 0;
 };
 
 #endif // QVIMAGECORE_H

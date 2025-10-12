@@ -37,7 +37,7 @@ int main(int argc, char *argv[])
     if (!parser.positionalArguments().isEmpty())
         QVApplication::openFile(window, parser.positionalArguments().constFirst(), true);
 
-    const int result = QApplication::exec();
+    const int result = QVApplication::exec();
     VipsReader::shutdown();
     return result;
 }
