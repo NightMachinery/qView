@@ -23,10 +23,11 @@ void VipsReader::shutdown()
     vips_shutdown();
 }
 
+// TODO: Lazily load full-res image by using isThumbnail
 vips::VImage VipsReader::createPipeline(const QString &fileName, bool isThumbnail)
 {
     vips::VImage in = isThumbnail
-            ? vips::VImage::thumbnail(fileName.toUtf8().constData(), 256)
+            ? vips::VImage::thumbnail(fileName.toUtf8().constData(), 256) // TODO: magic number
             : vips::VImage::new_from_file(fileName.toUtf8().constData(),
                                             vips::VImage::option()->set("access", VIPS_ACCESS_SEQUENTIAL));
 
@@ -66,7 +67,7 @@ void VipsReader::preload(const QString &fileName)
 {
     try
     {
-        vips::VImage image = createPipeline(fileName, true);
+        vips::VImage image = createPipeline(fileName, false);
         (void)image.width(); // todo stupid
     }
     catch (const vips::VError &)
@@ -79,7 +80,7 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName)
 {
     try
     {
-        vips::VImage in = createPipeline(fileName, true);
+        vips::VImage in = createPipeline(fileName, false);
         size_t buffer_size;
         void *buffer = in.write_to_memory(&buffer_size);
 

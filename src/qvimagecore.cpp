@@ -151,18 +151,18 @@ QVImageCore::ReadData QVImageCore::readFile(const QString &fileName,
     readImage = readImage.convertToFormat(QImage::Format::Format_ARGB32_Premultiplied);
 #endif
 
-// TODO
+// TODO do this lazily
 // Convert image from its embedded color space to the target color space
-// #if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
-    // // Assume image is sRGB if it doesn't specify
-    // if (!readImage.colorSpace().isValid())
-    //     readImage.setColorSpace(QColorSpace::SRgb);
+#if QT_VERSION >= QT_VERSION_CHECK(5, 14, 0)
+    // Assume image is sRGB if it doesn't specify
+    if (!readImage.colorSpace().isValid())
+        readImage.setColorSpace(QColorSpace::SRgb);
 
-    // // Convert image color space if we have a target that's different
-    // if (targetColorSpace.isValid() && readImage.colorSpace() != targetColorSpace) {
-    //     readImage.convertToColorSpace(targetColorSpace);
-    // }
-// #endif
+    // Convert image color space if we have a target that's different
+    if (targetColorSpace.isValid() && readImage.colorSpace() != targetColorSpace) {
+        readImage.convertToColorSpace(targetColorSpace);
+    }
+#endif
 
     QFileInfo fileInfo(fileName);
 
