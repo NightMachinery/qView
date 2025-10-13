@@ -46,10 +46,14 @@ public:
 
     void closeImage();
 
+    bool isPaused() const;
+    void setPaused(const bool &desiredState);
+
     void jumpToPreviousFrame();
     void jumpToNextFrame();
-    void setPaused(const bool &desiredState);
+
     void setSpeed(const int &desiredSpeed);
+
     void rotateImage(int rotation);
 
     const QVImageCore::FileDetails &getCurrentFileDetails() const

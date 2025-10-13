@@ -1145,21 +1145,21 @@ void MainWindow::pause()
     if (!getCurrentFileDetails().isMovieLoaded)
         return;
 
-    // const auto pauseActions = qvApp->getActionManager().getAllClonesOfAction("pause", this);
+    const auto pauseActions = qvApp->getActionManager().getAllClonesOfAction("pause", this);
 
-    // if (graphicsView->getLoadedMovie().state() == QMovie::Running) {
-    //     graphicsView->setPaused(true);
-    //     for (const auto &pauseAction : pauseActions) {
-    //         pauseAction->setText(tr("Res&ume"));
-    //         pauseAction->setIcon(QIcon::fromTheme("media-playback-start"));
-    //     }
-    // } else {
-    //     graphicsView->setPaused(false);
-    //     for (const auto &pauseAction : pauseActions) {
-    //         pauseAction->setText(tr("Pause"));
-    //         pauseAction->setIcon(QIcon::fromTheme("media-playback-pause"));
-    //     }
-    // }
+    if (!graphicsView->isPaused()) {
+        graphicsView->setPaused(true);
+        for (const auto &pauseAction : pauseActions) {
+            pauseAction->setText(tr("Res&ume"));
+            pauseAction->setIcon(QIcon::fromTheme("media-playback-start"));
+        }
+    } else {
+        graphicsView->setPaused(false);
+        for (const auto &pauseAction : pauseActions) {
+            pauseAction->setText(tr("Pause"));
+            pauseAction->setIcon(QIcon::fromTheme("media-playback-pause"));
+        }
+    }
 }
 
 void MainWindow::prevFrame()

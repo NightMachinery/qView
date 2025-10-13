@@ -1,5 +1,5 @@
-#ifndef VIPSREADER_H
-#define VIPSREADER_H
+#ifndef _VIPSREADER_H
+#define _VIPSREADER_H
 
 #include <QByteArray>
 #include <QImage>
@@ -15,6 +15,7 @@ public:
     struct ReadResult
     {
         QVector<QImage> images;
+        QVector<size_t> delays;
         QString error;
     };
 
@@ -35,4 +36,4 @@ private:
     static QImage writeToQImage(vips::VImage in);
 };
 
-#endif // VIPSREADER_H
+#endif /* _VIPSREADER_H */

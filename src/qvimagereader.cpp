@@ -37,8 +37,7 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
     int errorCode = 0;
 
     std::optional<QString> targetIccFileName;
-    if (displayColorProfileFile)
-    {
+    if (displayColorProfileFile) {
         targetIccFileName = displayColorProfileFile->fileName();
     }
     auto result = VipsReader::read(filePath, targetIccFileName);
@@ -46,7 +45,7 @@ std::unique_ptr<QVImageReader::ReadData> QVImageReader::doReadFile(
         errorCode = 1;
         return std::make_unique<ReadData>(ErrorData{errorCode, std::move(result.error)});
     }
-    QVImageWrapper readImage = QVImageWrapper(std::move(result.images));
+    QVImageWrapper readImage = QVImageWrapper(std::move(result.images), std::move(result.delays));
     const QImage &image = readImage.currentImage();
 
     imageSize = image.size();

@@ -399,8 +399,16 @@ void QVImageCore::jumpToNextFrame()
 
 void QVImageCore::setPaused(bool desiredState)
 {
-    // if (currentFileDetails.isMovieLoaded)
-        // loadedMovie.setPaused(desiredState);
+    if (currentFileDetails.isMovieLoaded)
+        loadedImage->setPaused(desiredState);
+}
+
+bool QVImageCore::isPaused() const
+{
+    if (currentFileDetails.isMovieLoaded) {
+        return loadedImage->isPaused();
+    }
+    return false;
 }
 
 void QVImageCore::setSpeed(int desiredSpeed)

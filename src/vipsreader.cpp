@@ -176,14 +176,33 @@ VipsReader::ReadResult VipsReader::read(const QString &fileName,
         if (nPages > 1) {
             int pageHeight = vips_image_get_page_height(in.get_image());
 
+            if (vips_image_get_typeof(in.get_image(), "delay") != 0) {
+                int *delays_array = nullptr;
+                int n_delays = 0;
+                if (vips_image_get_array_int(in.get_image(), "delay", &delays_array, &n_delays) == 0) {
+                    if (n_delays == nPages) {
+                        result.delays.reserve(n_delays);
+                        for (int i = 0; i < n_delays; ++i) {
+                            result.delays.append(delays_array[i] == 0 ? 100 : delays_array[i]);
+                        }
+                    } else if (n_delays == 1) {
+                        result.delays.fill(delays_array[0] == 0 ? 100 : delays_array[0], nPages);
+                    } else {
+                        result.delays.clear();
+                    }
+                    g_free(delays_array);
+                }
+            }
+
+            if (result.delays.isEmpty()) {
+                result.delays.fill(100, nPages);
+            }
+
             QVector<QImage> frames;
             frames.reserve(nPages);
 
             for (int i = 0; i < nPages; ++i) {
-                // std::cout << "processing page " << i << std::endl;
                 vips::VImage page = in.extract_area(0, i * pageHeight, in.width(), pageHeight);
-
-
                 frames.append(std::move(writeToQImage(page)));
             }
             result.images = std::move(frames);

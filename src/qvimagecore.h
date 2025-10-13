@@ -93,6 +93,7 @@ public:
 
     // returned const reference is read-only
     const QPixmap &getLoadedPixmap() const { return loadedPixmap; }
+    bool isPaused() const;
     const FileDetails &getCurrentFileDetails() const { return currentFileDetails; }
     int getCurrentRotation() const { return currentRotation; }
 

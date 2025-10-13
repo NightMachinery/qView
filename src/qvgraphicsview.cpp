@@ -425,10 +425,7 @@ void QVGraphicsView::makeUnscaled()
         flipped = true;
 
     // Return to original size
-    // if (getCurrentFileDetails().isMovieLoaded)
-    //     loadedPixmapItem->setPixmap(getLoadedMovie().currentPixmap());
-    // else
-        loadedPixmapItem->setPixmap(getLoadedPixmap());
+    loadedPixmapItem->setPixmap(getLoadedPixmap());
 
     setTransform(absoluteTransform);
 
@@ -736,6 +733,16 @@ void QVGraphicsView::closeImage()
     imageCore.closeImage();
 }
 
+bool QVGraphicsView::isPaused() const
+{
+    return imageCore.isPaused();
+}
+
+void QVGraphicsView::setPaused(const bool &desiredState)
+{
+    imageCore.setPaused(desiredState);
+}
+
 void QVGraphicsView::jumpToPreviousFrame()
 {
     imageCore.jumpToPreviousFrame();
@@ -744,11 +751,6 @@ void QVGraphicsView::jumpToPreviousFrame()
 void QVGraphicsView::jumpToNextFrame()
 {
     imageCore.jumpToNextFrame();
-}
-
-void QVGraphicsView::setPaused(const bool &desiredState)
-{
-    imageCore.setPaused(desiredState);
 }
 
 void QVGraphicsView::setSpeed(const int &desiredSpeed)
