@@ -4,6 +4,32 @@
 #include "qvwin32functions.h"
 
 #include <QCommandLineParser>
+#include <QTextStream>
+
+QStringList expandStandardInputPaths(const QStringList &paths)
+{
+    QStringList expandedPaths;
+    QTextStream inputStream(stdin, QIODevice::ReadOnly);
+    QTextStream errorStream(stderr);
+
+    for (const QString &path : paths) {
+        if (path != "-") {
+            expandedPaths.append(path);
+            continue;
+        }
+
+        while (!inputStream.atEnd()) {
+            const QString line = inputStream.readLine();
+            if (!line.isEmpty())
+                expandedPaths.append(line);
+        }
+
+        if (inputStream.status() != QTextStream::Ok)
+            errorStream << "qView: Failed to read paths from standard input" << Qt::endl;
+    }
+
+    return expandedPaths;
+}
 
 int main(int argc, char *argv[])
 {
@@ -29,12 +55,16 @@ int main(int argc, char *argv[])
             "ipc-server",
             QObject::tr("Open a JSON IPC socket. With no value, uses the default per-user socket. "
                         "Use --ipc-server=<socket> or --ipc-server <socket> to set it.")));
-    parser.addPositionalArgument(QObject::tr("file"), QObject::tr("The file to open."));
+    parser.addPositionalArgument(QObject::tr("file"),
+                                 QObject::tr("The file(s) or directories to open. Use - to read "
+                                             "line-delimited paths from standard input."),
+                                 QObject::tr("[file ...]"));
     parser.process(arguments);
 
     auto *window = QVApplication::newWindow();
-    if (!parser.positionalArguments().isEmpty())
-        QVApplication::openFile(window, parser.positionalArguments().constFirst(), true);
+    const QStringList inputPaths = expandStandardInputPaths(parser.positionalArguments());
+    if (!inputPaths.isEmpty())
+        QVApplication::openFileSequence(window, inputPaths, true);
 
     if (ipcServerOption.enabled)
         app.startIpcServer(ipcServerOption.serverName);

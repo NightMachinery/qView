@@ -31,3 +31,8 @@
 
 qView can open an opt-in JSON IPC socket with `--ipc-server`. See
 [docs/ipc.md](docs/ipc.md) for the current file path query and a Zsh helper.
+
+## Command-line input
+
+qView can open multiple files and directories as one navigation sequence. It also accepts `-` to
+read line-delimited paths from standard input. See [docs/cli-input.md](docs/cli-input.md).
