@@ -6,6 +6,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
+#include <QSettings>
 #include <QTemporaryDir>
 
 class ActionManagerTests : public QObject
@@ -23,6 +24,8 @@ private slots:
     void testIpcServerOptionAcceptsExplicitSocket();
     void testIpcCurrentFilePathResponse();
     void testInputPathSequence();
+    void testNextFileWrapsPastMissingFiles();
+    void testPreviousFileWrapsPastMissingFiles();
 };
 
 ActionManagerTests::ActionManagerTests() { }
@@ -127,8 +130,63 @@ void ActionManagerTests::testInputPathSequence()
     QVERIFY(warnings.at(1).contains("missing"));
 }
 
+void ActionManagerTests::testNextFileWrapsPastMissingFiles()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString firstFile = tempDir.filePath("1.png");
+    const QString currentFile = tempDir.filePath("2.png");
+    const QString missingNextFile = tempDir.filePath("3.png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(firstFile));
+    QVERIFY(QImage(3, 3, QImage::Format_ARGB32).save(currentFile));
+    QVERIFY(QImage(4, 4, QImage::Format_ARGB32).save(missingNextFile));
+
+    QWidget parent;
+    QVGraphicsView view(&parent);
+    view.loadFile(currentFile);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::remove(missingNextFile));
+    view.goToFile(QVGraphicsView::GoToFileMode::next);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(firstFile).absoluteFilePath());
+}
+
+void ActionManagerTests::testPreviousFileWrapsPastMissingFiles()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString missingPreviousFile = tempDir.filePath("1.png");
+    const QString currentFile = tempDir.filePath("2.png");
+    const QString lastFile = tempDir.filePath("3.png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(missingPreviousFile));
+    QVERIFY(QImage(3, 3, QImage::Format_ARGB32).save(currentFile));
+    QVERIFY(QImage(4, 4, QImage::Format_ARGB32).save(lastFile));
+
+    QWidget parent;
+    QVGraphicsView view(&parent);
+    view.loadFile(currentFile);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::remove(missingPreviousFile));
+    view.goToFile(QVGraphicsView::GoToFileMode::previous);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(lastFile).absoluteFilePath());
+}
+
 int main(int argc, char *argv[])
 {
+    QCoreApplication::setOrganizationName("qViewTests");
+    QCoreApplication::setApplicationName("qViewTests");
+    QSettings settings;
+    settings.beginGroup("options");
+    settings.setValue("colorspaceconversion", 0);
+    settings.endGroup();
+
     QVApplication app(argc, argv);
     ActionManagerTests actionManagerTests;
     return QTest::qExec(&actionManagerTests, argc, argv);
