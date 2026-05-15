@@ -306,8 +306,9 @@ QMimeData *QVGraphicsView::getMimeData() const
     if (!getCurrentFileDetails().isPixmapLoaded)
         return mimeData;
 
-    mimeData->setUrls(
-            { QUrl::fromLocalFile(imageCore.getCurrentFileDetails().fileInfo.absoluteFilePath()) });
+    const QString currentPath = QVImageCore::recoverNtagPath(
+            imageCore.getCurrentFileDetails().fileInfo.absoluteFilePath());
+    mimeData->setUrls({ QUrl::fromLocalFile(currentPath) });
     mimeData->setImageData(imageCore.getLoadedPixmap().toImage());
     return mimeData;
 }
@@ -361,7 +362,7 @@ void QVGraphicsView::reloadFile()
     if (!getCurrentFileDetails().isPixmapLoaded)
         return;
 
-    imageCore.loadFile(getCurrentFileDetails().fileInfo.absoluteFilePath(), true);
+    imageCore.loadFile(imageCore.recoverCurrentFilePath(), true);
 }
 
 void QVGraphicsView::postLoad()
@@ -569,6 +570,8 @@ void QVGraphicsView::originalSize()
 
 void QVGraphicsView::goToFile(const GoToFileMode &mode, int index)
 {
+    imageCore.recoverCurrentFilePath();
+
     bool shouldRetryFolderInfoUpdate = false;
 
     // Update folder info only after a little idle time as an optimization for when

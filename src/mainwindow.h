@@ -120,6 +120,10 @@ public:
         return graphicsView->getCurrentFileDetails();
     }
 
+    QFileInfo recoverCurrentFileInfo() { return graphicsView->recoverCurrentFileInfo(); }
+
+    QString recoverCurrentFilePath() { return graphicsView->recoverCurrentFilePath(); }
+
 public slots:
     void openFile(const QString &fileName);
     void openFileSequence(const QStringList &fileNames);

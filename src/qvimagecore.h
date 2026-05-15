@@ -92,6 +92,8 @@ public:
     QList<CompatibleFile> getCompatibleFilesForInputs(const QStringList &paths,
                                                       QStringList *warnings = nullptr) const;
     static QString recoverNtagPath(const QString &path, bool *recovered = nullptr);
+    QString recoverCurrentFilePath();
+    QFileInfo recoverCurrentFileInfo();
     void updateFolderInfo(QString dirPath = QString());
     void setCustomFileList(const QList<CompatibleFile> &fileList);
     void clearCustomFileList();

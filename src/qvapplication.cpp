@@ -401,7 +401,8 @@ bool QVApplication::startIpcServer(const QString &serverName)
 
 QString QVApplication::currentFilePath() const
 {
-    auto pathForWindow = [](const MainWindow *window) {
+    const auto topLevelWidgets = QApplication::topLevelWidgets();
+    auto pathForWindow = [](MainWindow *window) {
         if (!window)
             return QString();
 
@@ -409,16 +410,18 @@ QString QVApplication::currentFilePath() const
         if (!fileDetails.isLoadRequested)
             return QString();
 
-        return QVImageCore::recoverNtagPath(fileDetails.fileInfo.absoluteFilePath());
+        return window->recoverCurrentFilePath();
     };
 
     for (const auto &window : lastActiveWindows) {
+        if (!topLevelWidgets.contains(window))
+            continue;
+
         const QString path = pathForWindow(window);
         if (!path.isEmpty())
             return path;
     }
 
-    const auto topLevelWidgets = QApplication::topLevelWidgets();
     for (const auto &widget : topLevelWidgets) {
         const QString path = pathForWindow(qobject_cast<MainWindow *>(widget));
         if (!path.isEmpty())

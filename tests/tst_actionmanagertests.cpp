@@ -29,6 +29,8 @@ private slots:
     void testNextFileWrapsPastMissingFiles();
     void testPreviousFileWrapsPastMissingFiles();
     void testNextFileRecoversRetaggedFile();
+    void testPreviousFileWorksAfterRecoveredNavigation();
+    void testCurrentFileInfoRecoversNtagPath();
     void testIpcCurrentFilePathRecoversNtagPath();
 };
 
@@ -251,6 +253,55 @@ void ActionManagerTests::testNextFileRecoversRetaggedFile()
                  QFileInfo(taggedNextFile).absoluteFilePath());
 }
 
+void ActionManagerTests::testPreviousFileWorksAfterRecoveredNavigation()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString firstFile = tempDir.filePath("1.png");
+    const QString nextFile = tempDir.filePath("2.png");
+    const QString taggedNextFile = tempDir.filePath("2..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(firstFile));
+    QVERIFY(QImage(3, 3, QImage::Format_ARGB32).save(nextFile));
+
+    QWidget parent;
+    QVGraphicsView view(&parent);
+    view.loadFile(firstFile);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(firstFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(nextFile, taggedNextFile));
+    view.goToFile(QVGraphicsView::GoToFileMode::next);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(taggedNextFile).absoluteFilePath());
+
+    view.goToFile(QVGraphicsView::GoToFileMode::previous);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(firstFile).absoluteFilePath());
+}
+
+void ActionManagerTests::testCurrentFileInfoRecoversNtagPath()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString currentFile = tempDir.filePath("image.png");
+    const QString taggedCurrentFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(currentFile));
+
+    MainWindow window;
+    window.show();
+    window.openFile(currentFile);
+    QTRY_COMPARE(window.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
+    QCOMPARE(window.recoverCurrentFileInfo().absoluteFilePath(),
+             QFileInfo(taggedCurrentFile).absoluteFilePath());
+    window.close();
+    qvApp->deleteFromLastActiveWindows(&window);
+}
+
 void ActionManagerTests::testIpcCurrentFilePathRecoversNtagPath()
 {
     QTemporaryDir tempDir;
@@ -269,6 +320,8 @@ void ActionManagerTests::testIpcCurrentFilePathRecoversNtagPath()
 
     QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
     QCOMPARE(qvApp->currentFilePath(), QFileInfo(taggedCurrentFile).absoluteFilePath());
+    window.close();
+    qvApp->deleteFromLastActiveWindows(&window);
 }
 
 int main(int argc, char *argv[])

@@ -55,6 +55,8 @@ public:
     {
         return imageCore.getCurrentFileDetails();
     }
+    QString recoverCurrentFilePath() { return imageCore.recoverCurrentFilePath(); }
+    QFileInfo recoverCurrentFileInfo() { return imageCore.recoverCurrentFileInfo(); }
     const QPixmap &getLoadedPixmap() const { return imageCore.getLoadedPixmap(); }
     const QMovie &getLoadedMovie() const { return imageCore.getLoadedMovie(); }
 

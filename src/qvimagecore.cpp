@@ -522,6 +522,52 @@ QString QVImageCore::recoverNtagPath(const QString &path, bool *recovered)
     return candidates.constFirst();
 }
 
+QString QVImageCore::recoverCurrentFilePath()
+{
+    if (!currentFileDetails.isLoadRequested)
+        return QString();
+
+    const QString currentPath = currentFileDetails.fileInfo.absoluteFilePath();
+    bool recovered = false;
+    const QString recoveredPath = recoverNtagPath(currentPath, &recovered);
+    if (!recovered)
+        return currentPath;
+
+    const QFileInfo recoveredFileInfo(recoveredPath);
+    currentFileDetails.fileInfo = recoveredFileInfo;
+
+    for (CompatibleFile &compatibleFile : currentFileDetails.folderFileInfoList) {
+        const QString recoveredEntryPath = recoverNtagPath(compatibleFile.absoluteFilePath);
+        if (compatibleFile.absoluteFilePath != currentPath && recoveredEntryPath != recoveredPath)
+            continue;
+
+        compatibleFile.absoluteFilePath = recoveredFileInfo.absoluteFilePath();
+        compatibleFile.fileName = recoveredFileInfo.fileName();
+        compatibleFile.lastModified = recoveredFileInfo.lastModified().toMSecsSinceEpoch();
+#if QT_VERSION >= QT_VERSION_CHECK(5, 12, 0)
+        compatibleFile.lastCreated = recoveredFileInfo.birthTime().toMSecsSinceEpoch();
+#else
+        compatibleFile.lastCreated = recoveredFileInfo.created().toMSecsSinceEpoch();
+#endif
+        compatibleFile.size = recoveredFileInfo.size();
+    }
+
+    currentFileDetails.updateLoadedIndexInFolder();
+    if (currentFileDetails.loadedIndexInFolder == -1 && !usingCustomFileList)
+        updateFolderInfo(recoveredFileInfo.path());
+
+    return currentFileDetails.fileInfo.absoluteFilePath();
+}
+
+QFileInfo QVImageCore::recoverCurrentFileInfo()
+{
+    const QString recoveredPath = recoverCurrentFilePath();
+    if (recoveredPath.isEmpty())
+        return QFileInfo();
+
+    return currentFileDetails.fileInfo;
+}
+
 void QVImageCore::updateFolderInfo(QString dirPath)
 {
     if (usingCustomFileList) {

@@ -447,7 +447,7 @@ void MainWindow::disableActions()
 void MainWindow::requestPopulateOpenWithMenu()
 {
     openWithFutureWatcher.setFuture(QtConcurrent::run([&] {
-        const auto &curFilePath = getCurrentFileDetails().fileInfo.absoluteFilePath();
+        const QString curFilePath = recoverCurrentFilePath();
         return OpenWith::getOpenWithItems(curFilePath);
     }));
 }
@@ -488,34 +488,34 @@ void MainWindow::refreshProperties()
         value4 = graphicsView->getLoadedMovie().frameCount();
     else
         value4 = 0;
-    info->setInfo(getCurrentFileDetails().fileInfo, getCurrentFileDetails().baseImageSize.width(),
+    info->setInfo(recoverCurrentFileInfo(), getCurrentFileDetails().baseImageSize.width(),
                   getCurrentFileDetails().baseImageSize.height(), value4);
 }
 
 void MainWindow::updateWindowTitle()
 {
     QString newString = "qView";
-    if (getCurrentFileDetails().fileInfo.isFile()) {
+    const QFileInfo fileInfo = recoverCurrentFileInfo();
+    if (fileInfo.isFile()) {
         switch (qvApp->getSettingsManager().getInt(SettingsManager::Setting::TitleBarMode)) {
         case 1: {
-            newString = getCurrentFileDetails().fileInfo.fileName();
+            newString = fileInfo.fileName();
             break;
         }
         case 2: {
             newString = QString::number(getCurrentFileDetails().loadedIndexInFolder + 1);
             newString += "/" + QString::number(getCurrentFileDetails().folderFileInfoList.count());
-            newString += " - " + getCurrentFileDetails().fileInfo.fileName();
+            newString += " - " + fileInfo.fileName();
             break;
         }
         case 3: {
             newString = QString::number(getCurrentFileDetails().loadedIndexInFolder + 1);
             newString += "/" + QString::number(getCurrentFileDetails().folderFileInfoList.count());
-            newString += " - " + getCurrentFileDetails().fileInfo.fileName();
+            newString += " - " + fileInfo.fileName();
             if (!getCurrentFileDetails().errorData.hasError) {
                 newString += " - " + QString::number(getCurrentFileDetails().baseImageSize.width());
                 newString += "x" + QString::number(getCurrentFileDetails().baseImageSize.height());
-                newString +=
-                        " - " + QVInfoDialog::formatBytes(getCurrentFileDetails().fileInfo.size());
+                newString += " - " + QVInfoDialog::formatBytes(fileInfo.size());
             }
             newString += " - qView";
             break;
@@ -535,8 +535,7 @@ void MainWindow::updateWindowFilePath()
         return;
 
     const bool shouldPopulate = getCurrentFileDetails().isPixmapLoaded;
-    windowHandle()->setFilePath(shouldPopulate ? getCurrentFileDetails().fileInfo.absoluteFilePath()
-                                               : "");
+    windowHandle()->setFilePath(shouldPopulate ? recoverCurrentFilePath() : "");
 }
 
 void MainWindow::setWindowSize()
@@ -748,7 +747,7 @@ void MainWindow::reloadFile()
 
 void MainWindow::openWith(const OpenWith::OpenWithItem &openWithItem)
 {
-    OpenWith::openWith(getCurrentFileDetails().fileInfo.absoluteFilePath(), openWithItem);
+    OpenWith::openWith(recoverCurrentFilePath(), openWithItem);
 }
 
 void MainWindow::openContainingFolder()
@@ -756,7 +755,7 @@ void MainWindow::openContainingFolder()
     if (!getCurrentFileDetails().isPixmapLoaded)
         return;
 
-    const QFileInfo selectedFileInfo = getCurrentFileDetails().fileInfo;
+    const QFileInfo selectedFileInfo = recoverCurrentFileInfo();
 
 #ifdef Q_OS_WIN
     QProcess::startDetached(
@@ -784,8 +783,8 @@ void MainWindow::askDeleteFile(bool permanent)
         return;
     }
 
-    const QFileInfo &fileInfo = getCurrentFileDetails().fileInfo;
-    const QString fileName = getCurrentFileDetails().fileInfo.fileName();
+    const QFileInfo fileInfo = recoverCurrentFileInfo();
+    const QString fileName = fileInfo.fileName();
 
     if (!fileInfo.isWritable()) {
         QMessageBox::critical(
@@ -829,7 +828,7 @@ void MainWindow::askDeleteFile(bool permanent)
 
 void MainWindow::deleteFile(bool permanent)
 {
-    const QFileInfo &fileInfo = getCurrentFileDetails().fileInfo;
+    const QFileInfo fileInfo = recoverCurrentFileInfo();
     const QString filePath = fileInfo.absoluteFilePath();
     const QString fileName = fileInfo.fileName();
 
@@ -979,7 +978,7 @@ void MainWindow::rename()
     if (!getCurrentFileDetails().isPixmapLoaded)
         return;
 
-    auto *renameDialog = new QVRenameDialog(this, getCurrentFileDetails().fileInfo);
+    auto *renameDialog = new QVRenameDialog(this, recoverCurrentFileInfo());
     connect(renameDialog, &QVRenameDialog::newFileToOpen, this, &MainWindow::openFile);
     connect(renameDialog, &QVRenameDialog::readyToRenameFile, this, [this]() {
         if (auto device = graphicsView->getLoadedMovie().device()) {
@@ -1067,7 +1066,7 @@ void MainWindow::saveFrameAs()
     QFileDialog *saveDialog = new QFileDialog(this, tr("Save Frame As..."));
     saveDialog->setDirectory(settings.value("lastFileDialogDir", QDir::homePath()).toString());
     saveDialog->setNameFilters(qvApp->getNameFilterList());
-    saveDialog->selectFile(getCurrentFileDetails().fileInfo.baseName() + "-"
+    saveDialog->selectFile(recoverCurrentFileInfo().baseName() + "-"
                            + QString::number(graphicsView->getLoadedMovie().currentFrameNumber())
                            + ".png");
     saveDialog->setDefaultSuffix("png");
