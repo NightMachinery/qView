@@ -33,7 +33,9 @@ private slots:
     void testNextFileRecoversRetaggedFile();
     void testPreviousFileWorksAfterRecoveredNavigation();
     void testCurrentFileInfoRecoversNtagPath();
+    void testCurrentFileInfoRecoversUntaggedPathAfterTagRemoval();
     void testIpcCurrentFilePathRecoversNtagPath();
+    void testIpcCurrentFilePathRecoversUntaggedPathAfterTagRemoval();
 };
 
 ActionManagerTests::ActionManagerTests() { }
@@ -172,6 +174,20 @@ void ActionManagerTests::testRecoverNtagPath()
     recovered = false;
     QCOMPARE(QVImageCore::recoverNtagPath(untaggedFile, &recovered),
              QFileInfo(firstTaggedFile).absoluteFilePath());
+    QVERIFY(recovered);
+
+    QVERIFY(QFile::remove(taggedFile));
+    QVERIFY(QFile::remove(firstTaggedFile));
+    QVERIFY(QImage(5, 5, QImage::Format_ARGB32).save(untaggedFile));
+    recovered = false;
+    QCOMPARE(QVImageCore::recoverNtagPath(taggedFile, &recovered),
+             QFileInfo(untaggedFile).absoluteFilePath());
+    QVERIFY(recovered);
+
+    QVERIFY(QImage(6, 6, QImage::Format_ARGB32).save(firstTaggedFile));
+    recovered = false;
+    QCOMPARE(QVImageCore::recoverNtagPath(taggedFile, &recovered),
+             QFileInfo(untaggedFile).absoluteFilePath());
     QVERIFY(recovered);
 }
 
@@ -339,6 +355,32 @@ void ActionManagerTests::testCurrentFileInfoRecoversNtagPath()
     qvApp->deleteFromLastActiveWindows(&window);
 }
 
+void ActionManagerTests::testCurrentFileInfoRecoversUntaggedPathAfterTagRemoval()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString currentFile = tempDir.filePath("image.png");
+    const QString taggedCurrentFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(currentFile));
+
+    MainWindow window;
+    window.show();
+    window.openFile(currentFile);
+    QTRY_COMPARE(window.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
+    QCOMPARE(window.recoverCurrentFileInfo().absoluteFilePath(),
+             QFileInfo(taggedCurrentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(taggedCurrentFile, currentFile));
+    QCOMPARE(window.recoverCurrentFileInfo().absoluteFilePath(),
+             QFileInfo(currentFile).absoluteFilePath());
+    window.close();
+    qvApp->deleteFromLastActiveWindows(&window);
+}
+
 void ActionManagerTests::testIpcCurrentFilePathRecoversNtagPath()
 {
     QTemporaryDir tempDir;
@@ -357,6 +399,31 @@ void ActionManagerTests::testIpcCurrentFilePathRecoversNtagPath()
 
     QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
     QCOMPARE(qvApp->currentFilePath(), QFileInfo(taggedCurrentFile).absoluteFilePath());
+    window.close();
+    qvApp->deleteFromLastActiveWindows(&window);
+}
+
+void ActionManagerTests::testIpcCurrentFilePathRecoversUntaggedPathAfterTagRemoval()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString currentFile = tempDir.filePath("image.png");
+    const QString taggedCurrentFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(currentFile));
+
+    MainWindow window;
+    window.show();
+    qvApp->addToLastActiveWindows(&window);
+    window.openFile(currentFile);
+    QTRY_COMPARE(window.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
+    QCOMPARE(qvApp->currentFilePath(), QFileInfo(taggedCurrentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(taggedCurrentFile, currentFile));
+    QCOMPARE(qvApp->currentFilePath(), QFileInfo(currentFile).absoluteFilePath());
     window.close();
     qvApp->deleteFromLastActiveWindows(&window);
 }

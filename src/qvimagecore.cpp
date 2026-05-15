@@ -495,6 +495,16 @@ QString QVImageCore::recoverNtagPath(const QString &path, bool *recovered)
         return path;
 
     const QString suffix = originalFileInfo.suffix();
+    const QString untaggedFileName =
+            suffix.isEmpty() ? head : QStringLiteral("%1.%2").arg(head, suffix);
+    const QString untaggedPath = QDir(originalFileInfo.absolutePath()).absoluteFilePath(
+            untaggedFileName);
+    if (QFileInfo::exists(untaggedPath)) {
+        if (recovered)
+            *recovered = true;
+        return QFileInfo(untaggedPath).absoluteFilePath();
+    }
+
     const QString escapedHead = QRegularExpression::escape(head);
     const QString escapedSuffix = QRegularExpression::escape(suffix);
     const QString pattern = suffix.isEmpty()
