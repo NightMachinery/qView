@@ -23,6 +23,8 @@ private slots:
     void testIpcServerOptionUsesDefaultSocket();
     void testIpcServerOptionAcceptsExplicitSocket();
     void testIpcCurrentFilePathResponse();
+    void testBackgroundDetailsRectSelection();
+    void testBackgroundDetailsText();
     void testRecoverNtagPath();
     void testInputPathSequence();
     void testInputPathSequenceRecoversNtagPath();
@@ -108,6 +110,41 @@ void ActionManagerTests::testIpcCurrentFilePathResponse()
                                         "/tmp/image.jpg");
     QCOMPARE(unknownResponse.value("ok").toBool(), false);
     QCOMPARE(unknownResponse.value("error").toString(), QString("unknown_method"));
+}
+
+void ActionManagerTests::testBackgroundDetailsRectSelection()
+{
+    const QRect viewportRect(0, 0, 800, 600);
+    const QSize textSize(120, 20);
+    const int padding = 10;
+
+    QCOMPARE(MainWindow::selectBackgroundDetailsRect(viewportRect, QRect(0, 200, 800, 200),
+                                                     textSize, padding),
+             QRect(0, 0, 800, 200));
+    QCOMPARE(MainWindow::selectBackgroundDetailsRect(viewportRect, QRect(300, 0, 200, 600),
+                                                     textSize, padding),
+             QRect(0, 0, 300, 600));
+    QVERIFY(MainWindow::selectBackgroundDetailsRect(viewportRect, viewportRect, textSize, padding)
+                    .isNull());
+    QVERIFY(MainWindow::selectBackgroundDetailsRect(viewportRect, QRect(0, 12, 800, 576),
+                                                    textSize, padding)
+                    .isNull());
+}
+
+void ActionManagerTests::testBackgroundDetailsText()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString imageFile = tempDir.filePath("image..gray..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(imageFile));
+
+    const QString text =
+            MainWindow::backgroundDetailsText(QFileInfo(imageFile), 1, 7, QSize(3840, 2160));
+    QVERIFY(text.contains("2/7"));
+    QVERIFY(text.contains("image..gray..png"));
+    QVERIFY(text.contains("3840x2160"));
+    QVERIFY(text.contains(QVInfoDialog::formatBytes(QFileInfo(imageFile).size())));
 }
 
 void ActionManagerTests::testRecoverNtagPath()

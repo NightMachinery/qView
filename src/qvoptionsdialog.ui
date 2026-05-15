@@ -323,13 +323,23 @@
            </widget>
           </item>
           <item row="14" column="1">
+           <widget class="QCheckBox" name="backgroundDetailsCheckbox">
+            <property name="toolTip">
+             <string>Show file details in the unused background around the image</string>
+            </property>
+            <property name="text">
+             <string>Show details in image background</string>
+            </property>
+           </widget>
+          </item>
+          <item row="15" column="1">
            <widget class="QCheckBox" name="quitOnLastWindowCheckbox">
             <property name="text">
              <string>&amp;Quit on last window closed</string>
             </property>
            </widget>
           </item>
-          <item row="15" column="1">
+          <item row="16" column="1">
            <widget class="QCheckBox" name="ctrlDragCheckbox">
             <property name="toolTip">
              <string>Enable %1 + drag to move the window</string>

@@ -124,6 +124,12 @@ public:
 
     QString recoverCurrentFilePath() { return graphicsView->recoverCurrentFilePath(); }
 
+    static QRect selectBackgroundDetailsRect(const QRect &viewportRect, const QRect &imageRect,
+                                             const QSize &textSize, int padding);
+
+    static QString backgroundDetailsText(const QFileInfo &fileInfo, int fileIndex, int fileCount,
+                                         const QSize &imageSize);
+
 public slots:
     void openFile(const QString &fileName);
     void openFileSequence(const QStringList &fileNames);

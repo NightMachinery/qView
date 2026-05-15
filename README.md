@@ -43,3 +43,5 @@ directory.
 
 Default file navigation shortcuts are documented in
 [docs/keybindings.md](docs/keybindings.md).
+Display options, including the optional background details HUD, are documented in
+[docs/display.md](docs/display.md).

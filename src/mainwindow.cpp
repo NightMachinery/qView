@@ -32,6 +32,8 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QTemporaryFile>
+#include <QFontMetrics>
+#include <QPainter>
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -300,8 +302,94 @@ void MainWindow::paintEvent(QPaintEvent *event)
         painter.setPen(QVApplication::getPerceivedBrightness(backgroundColor) > 0.5 ? Qt::black
                                                                                     : Qt::white);
         painter.drawText(unobscuredViewportRect, errorMessage, QTextOption(Qt::AlignCenter));
+    } else if (qvGetSettingBool(BackgroundDetailsEnabled)
+               && getCurrentFileDetails().isPixmapLoaded && viewportRect.isValid()) {
+        const QRect imageViewportRect = graphicsView->loadedImageViewportRect();
+        const QRect imageRect(graphicsView->viewport()->mapTo(this, imageViewportRect.topLeft()),
+                              imageViewportRect.size());
+        const QString detailsText =
+                backgroundDetailsText(recoverCurrentFileInfo(),
+                                      getCurrentFileDetails().loadedIndexInFolder,
+                                      getCurrentFileDetails().folderFileInfoList.count(),
+                                      getCurrentFileDetails().baseImageSize);
+        QFont hudFont = font();
+        hudFont.setPointSizeF(qMax(8.0, hudFont.pointSizeF() * 0.95));
+        const QFontMetrics fontMetrics(hudFont);
+        const int padding = 12;
+        const QSize textSize =
+                fontMetrics.size(Qt::TextSingleLine, fontMetrics.elidedText(detailsText,
+                                                                            Qt::ElideMiddle, 260));
+        const QRect hudRect =
+                selectBackgroundDetailsRect(viewportRect, imageRect, textSize, padding);
+        if (!detailsText.isEmpty() && hudRect.isValid()) {
+            QColor textColor = QVApplication::getPerceivedBrightness(backgroundColor) > 0.5
+                    ? Qt::black
+                    : Qt::white;
+            textColor.setAlpha(190);
+            painter.setFont(hudFont);
+            painter.setPen(textColor);
+            const QString elidedText = fontMetrics.elidedText(
+                    detailsText, Qt::ElideMiddle, qMax(0, hudRect.width() - padding * 2));
+            painter.drawText(hudRect.adjusted(padding, 0, -padding, 0), elidedText,
+                             QTextOption(Qt::AlignCenter));
+        }
     }
     QMainWindow::paintEvent(event);
+}
+
+QRect MainWindow::selectBackgroundDetailsRect(const QRect &viewportRect, const QRect &imageRect,
+                                              const QSize &textSize, int padding)
+{
+    if (!viewportRect.isValid() || !imageRect.isValid() || textSize.isEmpty())
+        return QRect();
+
+    const QRect boundedImageRect = imageRect.intersected(viewportRect);
+    if (!boundedImageRect.isValid())
+        return QRect();
+
+    const QList<QRect> candidateRects = {
+        QRect(viewportRect.left(), viewportRect.top(), viewportRect.width(),
+              boundedImageRect.top() - viewportRect.top()),
+        QRect(viewportRect.left(), boundedImageRect.bottom() + 1, viewportRect.width(),
+              viewportRect.bottom() - boundedImageRect.bottom()),
+        QRect(viewportRect.left(), viewportRect.top(), boundedImageRect.left() - viewportRect.left(),
+              viewportRect.height()),
+        QRect(boundedImageRect.right() + 1, viewportRect.top(),
+              viewportRect.right() - boundedImageRect.right(), viewportRect.height())
+    };
+
+    QRect bestRect;
+    int bestArea = 0;
+    const QSize minimumSize = textSize + QSize(padding * 2, padding);
+    for (const QRect &candidateRect : candidateRects) {
+        if (candidateRect.width() < minimumSize.width()
+            || candidateRect.height() < minimumSize.height())
+            continue;
+
+        const int area = candidateRect.width() * candidateRect.height();
+        if (area > bestArea) {
+            bestArea = area;
+            bestRect = candidateRect;
+        }
+    }
+
+    return bestRect;
+}
+
+QString MainWindow::backgroundDetailsText(const QFileInfo &fileInfo, int fileIndex, int fileCount,
+                                          const QSize &imageSize)
+{
+    QStringList parts;
+    if (fileIndex >= 0 && fileCount > 0)
+        parts.append(QStringLiteral("%1/%2").arg(fileIndex + 1).arg(fileCount));
+    if (!fileInfo.fileName().isEmpty())
+        parts.append(fileInfo.fileName());
+    if (imageSize.isValid() && !imageSize.isEmpty())
+        parts.append(QStringLiteral("%1x%2").arg(imageSize.width()).arg(imageSize.height()));
+    if (fileInfo.exists())
+        parts.append(QVInfoDialog::formatBytes(fileInfo.size()));
+
+    return parts.join(QStringLiteral("  "));
 }
 
 void MainWindow::fullscreenChanged()

@@ -27,6 +27,7 @@ public:
         QuitOnLastWindow,
         MenuBarEnabled,
         FullScreenDetails,
+        BackgroundDetailsEnabled,
         CtrlDragWindow,
         // Image settings
         FilteringEnabled,

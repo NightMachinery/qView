@@ -31,6 +31,7 @@ static const SettingDefinition settingDefinitions[] = {
     { SettingsManager::Setting::QuitOnLastWindow, false, "quitonlastwindow" },
     { SettingsManager::Setting::MenuBarEnabled, false, "menubarenabled" },
     { SettingsManager::Setting::FullScreenDetails, false, "fullscreendetails" },
+    { SettingsManager::Setting::BackgroundDetailsEnabled, false, "backgrounddetailsenabled" },
     { SettingsManager::Setting::CtrlDragWindow, false, "ctrldragwindow" },
     // Image settings
     { SettingsManager::Setting::FilteringEnabled, true, "filteringenabled" },

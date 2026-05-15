@@ -313,6 +313,14 @@ QMimeData *QVGraphicsView::getMimeData() const
     return mimeData;
 }
 
+QRect QVGraphicsView::loadedImageViewportRect() const
+{
+    if (!getCurrentFileDetails().isPixmapLoaded || !loadedPixmapItem)
+        return QRect();
+
+    return mapFromScene(loadedPixmapItem->sceneBoundingRect()).boundingRect();
+}
+
 void QVGraphicsView::loadMimeData(const QMimeData *mimeData)
 {
     if (mimeData == nullptr)
@@ -421,6 +429,9 @@ void QVGraphicsView::zoom(qreal scaleFactor, const QPoint &pos)
     if (qvGetSettingBool(ScalingEnabled) && !isOriginalSize) {
         expensiveScaleTimerNew->start();
     }
+
+    if (window())
+        window()->update();
 }
 
 void QVGraphicsView::scaleExpensively()
@@ -545,6 +556,9 @@ void QVGraphicsView::resetScale()
 
     if (qvGetSettingBool(ScalingEnabled))
         expensiveScaleTimerNew->start();
+
+    if (window())
+        window()->update();
 }
 
 void QVGraphicsView::originalSize()
@@ -566,6 +580,9 @@ void QVGraphicsView::originalSize()
     absoluteTransform = transform();
 
     isOriginalSize = true;
+
+    if (window())
+        window()->update();
 }
 
 void QVGraphicsView::goToFile(const GoToFileMode &mode, int index)
