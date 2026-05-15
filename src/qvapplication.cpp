@@ -409,7 +409,7 @@ QString QVApplication::currentFilePath() const
         if (!fileDetails.isLoadRequested)
             return QString();
 
-        return fileDetails.fileInfo.absoluteFilePath();
+        return QVImageCore::recoverNtagPath(fileDetails.fileInfo.absoluteFilePath());
     };
 
     for (const auto &window : lastActiveWindows) {

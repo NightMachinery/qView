@@ -580,7 +580,8 @@ void QVGraphicsView::goToFile(const GoToFileMode &mode, int index)
         // If we skip updating now, flag it for retry later once we locate a new file.
         if (imageCore.hasCustomFileList())
             imageCore.updateFolderInfo();
-        else if (QFile::exists(getCurrentFileDetails().fileInfo.absoluteFilePath()))
+        else if (QFile::exists(QVImageCore::recoverNtagPath(
+                         getCurrentFileDetails().fileInfo.absoluteFilePath())))
             imageCore.updateFolderInfo();
         else
             shouldRetryFolderInfoUpdate = true;
@@ -640,7 +641,8 @@ void QVGraphicsView::goToFile(const GoToFileMode &mode, int index)
             if (newIndex < 0 || newIndex >= fileList.size())
                 break;
 
-            if (QFile::exists(fileList.value(newIndex).absoluteFilePath)) {
+            if (QFile::exists(QVImageCore::recoverNtagPath(
+                        fileList.value(newIndex).absoluteFilePath))) {
                 foundExistingFile = true;
                 break;
             }
@@ -658,7 +660,8 @@ void QVGraphicsView::goToFile(const GoToFileMode &mode, int index)
             return;
     }
 
-    const QString nextImageFilePath = fileList.value(newIndex).absoluteFilePath;
+    const QString nextImageFilePath =
+            QVImageCore::recoverNtagPath(fileList.value(newIndex).absoluteFilePath);
 
     if (!QFile::exists(nextImageFilePath)
         || nextImageFilePath == getCurrentFileDetails().fileInfo.absoluteFilePath())

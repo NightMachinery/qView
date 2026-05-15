@@ -16,6 +16,7 @@
 #include <QScreen>
 #include <QHash>
 #include <QSet>
+#include <QRegularExpression>
 
 namespace {
 QString sanitizeLocalPath(const QString &path)
@@ -24,6 +25,17 @@ QString sanitizeLocalPath(const QString &path)
     if (url.isLocalFile())
         return url.toLocalFile();
     return path;
+}
+
+QString ntagRecoveryHead(const QFileInfo &fileInfo)
+{
+    const QString stem = fileInfo.suffix().isEmpty() ? fileInfo.fileName()
+                                                     : fileInfo.completeBaseName();
+    const qsizetype tagSeparatorIndex = stem.indexOf(QStringLiteral(".."));
+    if (tagSeparatorIndex == -1)
+        return stem;
+
+    return stem.left(tagSeparatorIndex);
 }
 
 void sortCompatibleFiles(QList<QVImageCore::CompatibleFile> *fileList,
@@ -142,7 +154,7 @@ void QVImageCore::loadFile(const QString &fileName, bool isReloading)
         return;
     }
 
-    QString sanitaryFileName = sanitizeLocalPath(fileName);
+    QString sanitaryFileName = recoverNtagPath(sanitizeLocalPath(fileName));
 
     QFileInfo fileInfo(sanitaryFileName);
     sanitaryFileName = fileInfo.absoluteFilePath();
@@ -428,7 +440,7 @@ QVImageCore::getCompatibleFilesForInputs(const QStringList &paths, QStringList *
     };
 
     for (const QString &path : paths) {
-        const QString sanitaryPath = sanitizeLocalPath(path);
+        const QString sanitaryPath = recoverNtagPath(sanitizeLocalPath(path));
         const QFileInfo fileInfo(sanitaryPath);
         const QString absoluteFilePath = fileInfo.absoluteFilePath();
 
@@ -467,6 +479,47 @@ QVImageCore::getCompatibleFilesForInputs(const QStringList &paths, QStringList *
     }
 
     return fileList;
+}
+
+QString QVImageCore::recoverNtagPath(const QString &path, bool *recovered)
+{
+    if (recovered)
+        *recovered = false;
+
+    const QFileInfo originalFileInfo(path);
+    if (originalFileInfo.exists())
+        return path;
+
+    const QString head = ntagRecoveryHead(originalFileInfo);
+    if (head.isEmpty())
+        return path;
+
+    const QString suffix = originalFileInfo.suffix();
+    const QString escapedHead = QRegularExpression::escape(head);
+    const QString escapedSuffix = QRegularExpression::escape(suffix);
+    const QString pattern = suffix.isEmpty()
+            ? QStringLiteral("^%1\\.\\..+\\.\\.$").arg(escapedHead)
+            : QStringLiteral("^%1\\.\\..+\\.\\.%2$").arg(escapedHead, escapedSuffix);
+    const QRegularExpression ntagPattern(pattern);
+    if (!ntagPattern.isValid())
+        return path;
+
+    QDir dir(originalFileInfo.absolutePath());
+    const QFileInfoList candidateFileInfoList =
+            dir.entryInfoList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot, QDir::Name);
+    QStringList candidates;
+    for (const QFileInfo &candidateFileInfo : candidateFileInfoList) {
+        if (ntagPattern.match(candidateFileInfo.fileName()).hasMatch())
+            candidates.append(candidateFileInfo.absoluteFilePath());
+    }
+
+    if (candidates.isEmpty())
+        return path;
+
+    std::sort(candidates.begin(), candidates.end());
+    if (recovered)
+        *recovered = true;
+    return candidates.constFirst();
 }
 
 void QVImageCore::updateFolderInfo(QString dirPath)

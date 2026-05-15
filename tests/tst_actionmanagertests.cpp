@@ -23,9 +23,13 @@ private slots:
     void testIpcServerOptionUsesDefaultSocket();
     void testIpcServerOptionAcceptsExplicitSocket();
     void testIpcCurrentFilePathResponse();
+    void testRecoverNtagPath();
     void testInputPathSequence();
+    void testInputPathSequenceRecoversNtagPath();
     void testNextFileWrapsPastMissingFiles();
     void testPreviousFileWrapsPastMissingFiles();
+    void testNextFileRecoversRetaggedFile();
+    void testIpcCurrentFilePathRecoversNtagPath();
 };
 
 ActionManagerTests::ActionManagerTests() { }
@@ -104,6 +108,34 @@ void ActionManagerTests::testIpcCurrentFilePathResponse()
     QCOMPARE(unknownResponse.value("error").toString(), QString("unknown_method"));
 }
 
+void ActionManagerTests::testRecoverNtagPath()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString untaggedFile = tempDir.filePath("image.png");
+    const QString taggedFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(taggedFile));
+
+    bool recovered = false;
+    QCOMPARE(QVImageCore::recoverNtagPath(untaggedFile, &recovered),
+             QFileInfo(taggedFile).absoluteFilePath());
+    QVERIFY(recovered);
+
+    QVERIFY(QImage(3, 3, QImage::Format_ARGB32).save(untaggedFile));
+    recovered = true;
+    QCOMPARE(QVImageCore::recoverNtagPath(untaggedFile, &recovered), untaggedFile);
+    QVERIFY(!recovered);
+
+    QVERIFY(QFile::remove(untaggedFile));
+    const QString firstTaggedFile = tempDir.filePath("image..blue..png");
+    QVERIFY(QImage(4, 4, QImage::Format_ARGB32).save(firstTaggedFile));
+    recovered = false;
+    QCOMPARE(QVImageCore::recoverNtagPath(untaggedFile, &recovered),
+             QFileInfo(firstTaggedFile).absoluteFilePath());
+    QVERIFY(recovered);
+}
+
 void ActionManagerTests::testInputPathSequence()
 {
     QTemporaryDir tempDir;
@@ -128,6 +160,24 @@ void ActionManagerTests::testInputPathSequence()
     QCOMPARE(warnings.length(), 2);
     QVERIFY(warnings.at(0).contains("unsupported"));
     QVERIFY(warnings.at(1).contains("missing"));
+}
+
+void ActionManagerTests::testInputPathSequenceRecoversNtagPath()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString untaggedFile = tempDir.filePath("image.png");
+    const QString taggedFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(taggedFile));
+
+    QVImageCore imageCore;
+    QStringList warnings;
+    const auto files = imageCore.getCompatibleFilesForInputs({ untaggedFile }, &warnings);
+
+    QCOMPARE(files.length(), 1);
+    QCOMPARE(files.at(0).absoluteFilePath, QFileInfo(taggedFile).absoluteFilePath());
+    QVERIFY(warnings.isEmpty());
 }
 
 void ActionManagerTests::testNextFileWrapsPastMissingFiles()
@@ -176,6 +226,49 @@ void ActionManagerTests::testPreviousFileWrapsPastMissingFiles()
     view.goToFile(QVGraphicsView::GoToFileMode::previous);
     QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
                  QFileInfo(lastFile).absoluteFilePath());
+}
+
+void ActionManagerTests::testNextFileRecoversRetaggedFile()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString currentFile = tempDir.filePath("1.png");
+    const QString nextFile = tempDir.filePath("2.png");
+    const QString taggedNextFile = tempDir.filePath("2..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(currentFile));
+    QVERIFY(QImage(3, 3, QImage::Format_ARGB32).save(nextFile));
+
+    QWidget parent;
+    QVGraphicsView view(&parent);
+    view.loadFile(currentFile);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(nextFile, taggedNextFile));
+    view.goToFile(QVGraphicsView::GoToFileMode::next);
+    QTRY_COMPARE(view.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(taggedNextFile).absoluteFilePath());
+}
+
+void ActionManagerTests::testIpcCurrentFilePathRecoversNtagPath()
+{
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    const QString currentFile = tempDir.filePath("image.png");
+    const QString taggedCurrentFile = tempDir.filePath("image..red..png");
+    QVERIFY(QImage(2, 2, QImage::Format_ARGB32).save(currentFile));
+
+    MainWindow window;
+    window.show();
+    qvApp->addToLastActiveWindows(&window);
+    window.openFile(currentFile);
+    QTRY_COMPARE(window.getCurrentFileDetails().fileInfo.absoluteFilePath(),
+                 QFileInfo(currentFile).absoluteFilePath());
+
+    QVERIFY(QFile::rename(currentFile, taggedCurrentFile));
+    QCOMPARE(qvApp->currentFilePath(), QFileInfo(taggedCurrentFile).absoluteFilePath());
 }
 
 int main(int argc, char *argv[])
