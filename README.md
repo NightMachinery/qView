@@ -36,6 +36,8 @@ qView can open an opt-in JSON IPC socket with `--ipc-server`. See
 
 qView can open multiple files and directories as one navigation sequence. It also accepts `-` to
 read line-delimited paths from standard input. See [docs/cli-input.md](docs/cli-input.md).
+When a requested file has been renamed with ntags, qView can recover the tagged path in the same
+directory.
 
 ## Keybindings
 

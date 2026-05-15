@@ -11,6 +11,9 @@ to the supported images in that directory using qView's file filtering and sort 
 paths, unsupported files, and directories without supported images are skipped with diagnostics on
 standard error.
 
+If a file path is missing because ntags were added to the filename, qView tries to recover it in the
+same directory before skipping it. For example, `image.png` can resolve to `image..red..png`.
+
 Use `-` to read additional paths from standard input. Input is line-delimited, and empty lines are
 ignored. The `-` marker expands in place:
 

@@ -48,6 +48,10 @@ Success response:
 {"ok":true,"path":"/absolute/current/file.jpg"}
 ```
 
+If the current file was renamed by adding ntags after qView loaded it, qView tries to recover the
+current path before returning it. For example, a stored `image.png` path can be returned as
+`image..red..png` when the original file no longer exists.
+
 Failure response when no file is open:
 
 ```json
